@@ -1,0 +1,17 @@
+{
+  "name": "2d-sparse-bitmaps",
+  "version": "0.0.0",
+  "description": "Two-dimensional sparse bitmaps",
+  "main": "index.js",
+  "scripts": {
+    "test-only": "tape test/*.js",
+    "lint": "eslint .",
+    "test": "eslint . && tape test/*.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "eslint": "^7.4.0",
+    "tape": "^5.0.1"
+  }
+}
