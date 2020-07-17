@@ -1,8 +1,10 @@
 const BackingStoreKey = 'backingStore';
 const ChunkWidthKey = 'chunkWidth';
+const KeyPrefixKey = 'keyPrefix';
 
 const Defaults = {
   [ChunkWidthKey]: 128,
+  [KeyPrefixKey]: 'twodim-sparse-bitmap',
   Limits: {
     [ChunkWidthKey]: {
       min: 8
@@ -14,13 +16,20 @@ const LimitChecks = {
   [ChunkWidthKey]: (x) => x >= Defaults.Limits[ChunkWidthKey].min && (x % 8) === 0
 };
 
+// a very simple, unoptimized store provided as an example implementation & last-chance default
 class DefaultStore {
   constructor() {
     this.store = {};
   }
 
   getbit(key, bitPosition) {
-    return key in this.store ? this.store[key][bitPosition] : undefined;
+    if (key in this.store) {
+      if (bitPosition in this.store[key]) {
+        return this.store[key][bitPosition];
+      }
+    }
+
+    return 0;
   }
 
   setbit(key, bitPosition, value) {
@@ -28,14 +37,102 @@ class DefaultStore {
       this.store[key] = [];
     }
 
-    this.store[key][bitPosition] =  value;
+    const byteIdx = Math.floor(bitPosition / 8);
+    const inByteBitPos = bitPosition % 8;
+
+    // lazily initialize everything up to and including byteIdx that isn't already initialized
+    if (!(byteIdx in this.store[key])) {
+      for (let bi = 0; bi <= byteIdx; bi++) {
+        if (!(bi in this.store[key])) {
+          this.store[key][bi] = 0;
+        }
+      }
+    }
+
+    this.store[key][byteIdx] |= (value == true ? 1 : 0) << inByteBitPos;
+  }
+
+  getBuffer(key) {
+    return Buffer.from(this.store[key]);
   }
 };
 
+class SparseBitmapImpl {
+  constructor(parentFacade) {
+    this.parent = parentFacade;
+  }
+
+  chunkCoords(x, y) {
+    return [Math.floor(Number(x) / this.parent[ChunkWidthKey]), Math.floor(Number(y) / this.parent[ChunkWidthKey])];
+  }
+
+  bitPosition(chunkXY, x, y) {
+    return (Number(x) - (chunkXY[0] * this.parent[ChunkWidthKey])) + ((Number(y) - (chunkXY[1] * this.parent[ChunkWidthKey])) * this.parent[ChunkWidthKey]);
+  }
+
+  key(bmType, cX, cY) {
+    return `${this.parent[KeyPrefixKey]}:${bmType}:${cX}:${cY}`;
+  }
+
+  async getSet(bmType, x, y, setVal = undefined) {
+    const chunk = this.chunkCoords(x, y);
+    const bitPos = this.bitPosition(chunk, x, y);
+    const [cX, cY] = chunk;
+
+    if (setVal === undefined) {
+      return this.parent[BackingStoreKey].getbit(this.key(bmType, cX, cY), bitPos);
+    } else {
+      return this.parent[BackingStoreKey].setbit(this.key(bmType, cX, cY), bitPos, Number(setVal));
+    }
+  };
+
+  async allSetInBounds(bmType, fromX, fromY, toX, toY, strict = false) {
+    const [fcX, fcY] = this.chunkCoords(fromX, fromY);
+    const [tcX, tcY] = this.chunkCoords(toX, toY);
+    const rowWidth = this.parent[ChunkWidthKey];
+    let retList = [];
+
+    for (let wcX = fcX; wcX <= tcX; wcX++) {
+      for (let wcY = fcY; wcY <= tcY; wcY++) {
+        const chunkBytes = await this.parent[BackingStoreKey].getBuffer(this.key(bmType, wcX, wcY));
+
+        if (!chunkBytes || chunkBytes.length < 1) {
+          continue;
+        }
+
+        for (let cByte = 0; cByte < chunkBytes.length; cByte++) {
+          for (let bit = 0; bit < 8; bit++) {
+            if (chunkBytes[cByte] & (1 << bit)) {
+              let ix = (wcX * rowWidth) + (7 - bit) + ((cByte % (rowWidth / 8)) * 8);
+              let iy = ((((7 - bit) + (cByte * 8)) - ix + (wcX * rowWidth)) / rowWidth) + (wcY * rowWidth);
+              retList.push([ix, iy]);
+            }
+          }
+        }
+      }
+    }
+
+    // strict includes only blocks within the specified bounding box and sorts them in CW order;
+    // otherwise, all blocks within the *chunks* the specified bound box *hits* are included
+    if (strict) {
+      retList = retList.filter(x => x[0] >= fromX && x[1] >= fromY && x[0] <= toX && x[1] <= toY);
+      
+      // sort in clockwise order
+      retList.sort((a, b) => {
+        const xDiff = a[0] - b[0];
+        if (xDiff === 0) {
+          return a[1] - b[1];
+        }
+        return xDiff;
+      });
+    }
+
+    return retList;
+  };
+}
+
 class SparseBitmap {
   constructor(options = {}) {
-    this.options = options;
-
     if (!(ChunkWidthKey in options)) {
       options[ChunkWidthKey] = Defaults[ChunkWidthKey];
     }
@@ -44,31 +141,61 @@ class SparseBitmap {
       throw new Error(`invalid '${ChunkWidthKey}' ${options[ChunkWidthKey]}`);
     }
 
-    if (!(BackingStoreKey in options)) {
-      this.backingStore = new DefaultStore();
-    } else {
-      this.backingStore = options[BackingStoreKey];
+    this[ChunkWidthKey] = options[ChunkWidthKey];
+
+    if (!(KeyPrefixKey in options)) {
+      options[KeyPrefixKey] = Defaults[KeyPrefixKey];
     }
 
-    if (!this.backingStoreIsValid()) {
+    this[KeyPrefixKey] = options[KeyPrefixKey];
+
+    if (!(BackingStoreKey in options)) {
+      this[BackingStoreKey] = new DefaultStore();
+    } else {
+      this[BackingStoreKey] = options[BackingStoreKey];
+    }
+
+    // defined here so as to be private to the constructor & defined as an arrow
+    // function so as to automatically capture 'this' appropriately
+    const backingStoreIsValid = () => {
+      const bs = this[BackingStoreKey];
+  
+      if (!('getbit' in bs) || typeof bs.getbit !== 'function') {
+        return false;
+      }
+      
+      if (!('setbit' in bs) || typeof bs.setbit !== 'function') {
+        return false;
+      }
+      
+      if (!('getBuffer' in bs) || typeof bs.getBuffer !== 'function') {
+        return false;
+      }
+  
+      if ('pipeline' in bs) {
+        this.isPipelineCapable = true;
+      }
+  
+      return true;
+    };
+
+    if (!backingStoreIsValid()) {
       throw new Error(`invalid object given for '${BackingStoreKey}'`);
     }
+
+    this.impl = new SparseBitmapImpl(this);
   }
 
-  backingStoreIsValid() {
-    if (!('getbit' in this.backingStore) || typeof this.backingStore.getbit !== 'function') {
-      return false;
-    }
-    
-    if (!('setbit' in this.backingStore) || typeof this.backingStore.setbit !== 'function') {
-      return false;
-    }
+  async get(key, x, y) {
+    return this.impl.getSet(key, x, y);
+  }
 
-    if ('pipeline' in this.backingStore) {
-      this.isPipelineCapable = true;
-    }
+  async set(key, x, y) {
+    return this.impl.getSet(key, x, y, 1);
+  }
 
-    return true;
+  async unset(key, x, y) {
+    return this.impl.getSet(key, x, y, 0);
   }
 };
 

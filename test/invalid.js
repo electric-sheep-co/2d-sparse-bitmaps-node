@@ -18,15 +18,6 @@ test('construct with invalid chunk widths', function(t) {
   });
   
   // chunk width must be a multiple of eight
-  t.throws(function() {
-    new TwoDim.SparseBitmap({
-      [TwoDim.ChunkWidthKey]: 23
-    })
-  });
-  
-  t.throws(function() {
-    new TwoDim.SparseBitmap({
-      [TwoDim.ChunkWidthKey]: 12
-    })
-  });
+  t.throws(function() { new TwoDim.SparseBitmap({ [TwoDim.ChunkWidthKey]: 23 }); });
+  t.throws(function() { new TwoDim.SparseBitmap({ [TwoDim.ChunkWidthKey]: 12 }); });
 });
