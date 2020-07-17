@@ -9,7 +9,7 @@ test('construct with invalid backing store', function(t) {
 });
 
 test('construct with invalid chunk widths', function(t) {
-  t.plan(2);
+  t.plan(3);
 
   t.throws(function() {
     new TwoDim.SparseBitmap({
@@ -17,10 +17,16 @@ test('construct with invalid chunk widths', function(t) {
     })
   });
   
-  // chunk width must be a power of two
+  // chunk width must be a multiple of eight
   t.throws(function() {
     new TwoDim.SparseBitmap({
       [TwoDim.ChunkWidthKey]: 23
+    })
+  });
+  
+  t.throws(function() {
+    new TwoDim.SparseBitmap({
+      [TwoDim.ChunkWidthKey]: 12
     })
   });
 });

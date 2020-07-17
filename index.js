@@ -11,7 +11,7 @@ const Defaults = {
 };
 
 const LimitChecks = {
-  [ChunkWidthKey]: (x) => x >= Defaults.Limits[ChunkWidthKey].min && (x % 2) === 0
+  [ChunkWidthKey]: (x) => x >= Defaults.Limits[ChunkWidthKey].min && (x % 8) === 0
 };
 
 class DefaultStore {
