@@ -12,6 +12,7 @@
   "license": "ISC",
   "devDependencies": {
     "eslint": "^7.4.0",
+    "ioredis": "^4.17.3",
     "tape": "^5.0.1"
   }
 }

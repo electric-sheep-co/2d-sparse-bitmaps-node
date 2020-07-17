@@ -18,7 +18,7 @@ class DefaultStore {
   }
 };
 
-class Bitmap {
+class SparseBitmap {
   constructor(options = {}) {
     this.options = options;
 
@@ -42,12 +42,16 @@ class Bitmap {
       return false;
     }
 
+    if ('pipeline' in this.backingStore) {
+      this.isPipelineCapable = true;
+    }
+
     return true;
   }
 };
 
 module.exports = {
-  Bitmap,
+  SparseBitmap,
   DefaultStore,
   BackingStoreKey
 };
