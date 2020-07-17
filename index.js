@@ -1,4 +1,18 @@
 const BackingStoreKey = 'backingStore';
+const ChunkWidthKey = 'chunkWidth';
+
+const Defaults = {
+  [ChunkWidthKey]: 128,
+  Limits: {
+    [ChunkWidthKey]: {
+      min: 8
+    }
+  }
+};
+
+const LimitChecks = {
+  [ChunkWidthKey]: (x) => x >= Defaults.Limits[ChunkWidthKey].min && (x % 2) === 0
+};
 
 class DefaultStore {
   constructor() {
@@ -21,6 +35,14 @@ class DefaultStore {
 class SparseBitmap {
   constructor(options = {}) {
     this.options = options;
+
+    if (!(ChunkWidthKey in options)) {
+      options[ChunkWidthKey] = Defaults[ChunkWidthKey];
+    }
+
+    if (!LimitChecks[ChunkWidthKey](options[ChunkWidthKey])) {
+      throw new Error(`invalid '${ChunkWidthKey}' ${options[ChunkWidthKey]}`);
+    }
 
     if (!(BackingStoreKey in options)) {
       this.backingStore = new DefaultStore();
@@ -53,5 +75,7 @@ class SparseBitmap {
 module.exports = {
   SparseBitmap,
   DefaultStore,
-  BackingStoreKey
+  BackingStoreKey,
+  ChunkWidthKey,
+  Defaults
 };
