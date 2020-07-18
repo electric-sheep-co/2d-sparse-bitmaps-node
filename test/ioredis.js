@@ -4,8 +4,18 @@ const TwoD = require('../');
 const shared = require('./shared');
 
 const execWithLocal = async (eFunc) => {
+  const rOpts = {};
+
+  if ('REDIS_LOCAL_AUTH' in process.env) {
+    rOpts.password = process.env.REDIS_LOCAL_AUTH;
+  }
+
+  if ('REDIS_LOCAL_DB' in process.env) {
+    rOpts.db = process.env.REDIS_LOCAL_DB;
+  }
+
   const bitmap = new TwoD.SparseBitmap({
-    [TwoD.BackingStoreKey]: new Redis('localhost', 6379)
+    [TwoD.BackingStoreKey]: new Redis('localhost', 6379, rOpts)
   });
 
   await eFunc(bitmap);
