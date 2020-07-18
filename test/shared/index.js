@@ -32,7 +32,9 @@ async function setNRandomAndCheckInBounds(key, t, n, bitmap, strict = false) {
     const checkSet = (idx) => {
       if (rCoords[idx] < limits.min[idx]) {
         limits.min[idx] = rCoords[idx];
-      } else if (rCoords[idx] > limits.max[idx]) {
+      }
+      
+      if (rCoords[idx] > limits.max[idx]) {
         limits.max[idx] = rCoords[idx];
       }
     };
@@ -58,16 +60,15 @@ async function setNRandomAndCheckInBounds(key, t, n, bitmap, strict = false) {
     expectCoords[rX][rY] = true;
   }
 
-  const inBounds = await bitmap.inBounds(key, {
+  const bounds = {
     from: { x: limits.min[0], y: limits.min[1] },
     to: { x: limits.max[0], y: limits.max[1] }
-  }, strict);
+  };
+
+  const inBounds = await bitmap.inBounds(key, bounds, strict);
 
   const _dbg = async () => {
-    const nonStrict = (await bitmap.inBounds(key, {
-      from: { x: limits.min[0], y: limits.min[1] },
-      to: { x: limits.max[0], y: limits.max[1] }
-    }, !strict));
+    const nonStrict = (await bitmap.inBounds(key, bounds, !strict));
 
     const leftover = [];
     Object.keys(expectCoords).forEach((row) => {
@@ -78,7 +79,8 @@ async function setNRandomAndCheckInBounds(key, t, n, bitmap, strict = false) {
       })
     })
 
-    return `\n\nEXPECTED: ${JSON.stringify(expectCoords)}\n\nIN-BOUNDS: ${JSON.stringify(inBounds)}\n\n`
+    return `\n\nBOUNDS: ${JSON.stringify(bounds)}\n\nEXPECTED: ${JSON.stringify(expectCoords)}`
+      + `\n\nIN-BOUNDS: ${JSON.stringify(inBounds)}\n\n`
       + `\n\nSTRICT(${strict}) (len=${nonStrict.length}): ${JSON.stringify(nonStrict)}`
       + `\n\n${leftover.length} LEFTOVER: ${JSON.stringify(leftover)}`;
   };
