@@ -53,6 +53,10 @@ class DefaultStore {
   }
 
   getBuffer(key) {
+    if (!(key in this.store)) {
+      this.store[key] = [];
+    }
+    
     return Buffer.from(this.store[key]);
   }
 };
@@ -116,7 +120,7 @@ class SparseBitmapImpl {
     // otherwise, all blocks within the *chunks* the specified bound box *hits* are included
     if (strict) {
       retList = retList.filter(x => x[0] >= fromX && x[1] >= fromY && x[0] <= toX && x[1] <= toY);
-      
+
       // sort in clockwise order
       retList.sort((a, b) => {
         const xDiff = a[0] - b[0];
@@ -196,6 +200,10 @@ class SparseBitmap {
 
   async unset(key, x, y) {
     return this.impl.getSet(key, x, y, 0);
+  }
+
+  async inBounds(key, bounds) {
+    return this.impl.allSetInBounds(key, bounds.from.x, bounds.from.y, bounds.to.x, bounds.to.y);
   }
 };
 
