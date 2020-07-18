@@ -32,12 +32,22 @@ test('local redis - 0,1', async function (t) { await singleLocal(t, 0, 1); });
 test('local redis - 1,0', async function (t) { await singleLocal(t, 1, 0); });
 test('local redis - 1,1', async function (t) { await singleLocal(t, 1, 1); });
 
-test('local redis - 42 random', async function (t) {
+test('local redis - 42 random, non-strict', async function (t) {
   await execWithLocal(async (bitmap) => shared.setNRandomAndCheckInBounds('r42Rand', t, 42, bitmap));
 });
 
-test('local redis - random random', async function (t) {
+test('local redis - random random, non-strict', async function (t) {
   const nRand = Math.floor(512 + Math.random() * 512);
   console.log(`using nRand=${nRand}`);
   await execWithLocal(async (bitmap) => shared.setNRandomAndCheckInBounds(`rRand${nRand}Rand`, t, nRand, bitmap));
+});
+
+test('local redis - 42 random, strict', async function (t) {
+  await execWithLocal(async (bitmap) => shared.setNRandomAndCheckInBounds('r42Rand', t, 42, bitmap, true));
+});
+
+test('local redis - random random, strict', async function (t) {
+  const nRand = Math.floor(512 + Math.random() * 512);
+  console.log(`using nRand=${nRand}`);
+  await execWithLocal(async (bitmap) => shared.setNRandomAndCheckInBounds(`rRand${nRand}Rand`, t, nRand, bitmap, true));
 });

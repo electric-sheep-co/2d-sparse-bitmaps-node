@@ -21,7 +21,7 @@ async function singleSetTestUnset(key, t, x, y, bitmap = undefined) {
   t.equal(await bitmap.get(key, x, y), 0);
 }
 
-async function setNRandomAndCheckInBounds(key, t, n, bitmap) {
+async function setNRandomAndCheckInBounds(key, t, n, bitmap, strict = false) {
   key = tKey(`setNRand:${key}`);
   const expectCoords = {};
 
@@ -43,7 +43,7 @@ async function setNRandomAndCheckInBounds(key, t, n, bitmap) {
 
   for (let i = 0; i < n; i++) {
     let rX, rY;
-    
+
     do {
       [rX, rY] = [ourRand(), ourRand()];
     } while (rX in expectCoords && rY in expectCoords[rX]);
@@ -61,13 +61,13 @@ async function setNRandomAndCheckInBounds(key, t, n, bitmap) {
   const inBounds = await bitmap.inBounds(key, {
     from: { x: limits.min[0], y: limits.min[1] },
     to: { x: limits.max[0], y: limits.max[1] }
-  });// true);
+  }, strict);
 
   const _dbg = async () => {
     const nonStrict = (await bitmap.inBounds(key, {
       from: { x: limits.min[0], y: limits.min[1] },
       to: { x: limits.max[0], y: limits.max[1] }
-    }, true));
+    }, !strict));
 
     const leftover = [];
     Object.keys(expectCoords).forEach((row) => {
@@ -78,16 +78,11 @@ async function setNRandomAndCheckInBounds(key, t, n, bitmap) {
       })
     })
 
-    return `\n\n${JSON.stringify(expectCoords)}\n${JSON.stringify(inBounds)}\n\n`
-      + `\n\nSTRICT (len=${nonStrict.length}): ${JSON.stringify(nonStrict)}`
+    return `\n\nEXPECTED: ${JSON.stringify(expectCoords)}\n\nIN-BOUNDS: ${JSON.stringify(inBounds)}\n\n`
+      + `\n\nSTRICT(${strict}) (len=${nonStrict.length}): ${JSON.stringify(nonStrict)}`
       + `\n\n${leftover.length} LEFTOVER: ${JSON.stringify(leftover)}`;
   };
-/*
-  if (inBounds.length !== n) {
-    t.fail(`lengths mismatch, ${inBounds.length} vs. n=${n}${(await _dbg())}`);
-    return;
-  }
-*/
+  
   for (let rCoords of inBounds) {
     if (!(rCoords[0] in expectCoords)) {
       t.fail(`row miss - ${rCoords[0]} not in ${Object.keys(expectCoords)}${(await _dbg())}`);

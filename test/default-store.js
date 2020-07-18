@@ -75,3 +75,19 @@ test('single random coord', async function (t) {
 test('42 random coords', async function (t) {
   await setNRandomAndCheckInBounds('42rand', t, 42, new TwoD.SparseBitmap());
 });
+
+test('rand random coords', async function (t) {
+  const nRand = Math.floor(512 + Math.random() * 512);
+  console.log(`using nRand=${nRand}`);
+  await setNRandomAndCheckInBounds(`rand${nRand}rand`, t, nRand, new TwoD.SparseBitmap());
+});
+
+test('42 random coords - strict', async function (t) {
+  await setNRandomAndCheckInBounds('42rand', t, 42, new TwoD.SparseBitmap(), true);
+});
+
+test('rand random coords - strict', async function (t) {
+  const nRand = Math.floor(512 + Math.random() * 512);
+  console.log(`using nRand=${nRand}`);
+  await setNRandomAndCheckInBounds(`rand${nRand}rand`, t, nRand, new TwoD.SparseBitmap(), true);
+});
