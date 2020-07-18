@@ -23,7 +23,7 @@ test('construct with lazyConnect ioredis instance', function (t) {
       [TwoD.BackingStoreKey]: new Redis({ lazyConnect: true })
     });
 
-    t.true(bitmap == bitmap);//bitmap.isPipelineCapable);
+    t.true(bitmap.isPipelineCapable);
   });
 });
 

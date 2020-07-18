@@ -100,13 +100,14 @@ class SparseBitmapImpl {
   };
 
   async allSetInBounds(bmType, fromX, fromY, toX, toY, strict = false) {
+    const rowWidth = this.parent[ChunkWidthKey];
     const [fcX, fcY] = this.chunkCoords(fromX, fromY);
     const [tcX, tcY] = this.chunkCoords(toX, toY);
-    const rowWidth = this.parent[ChunkWidthKey];
 
     let retList = [];
     let bufferGetter = async (bgX, bgY) => this.parent[BackingStoreKey].getBuffer(this.key(bmType, bgX, bgY));
 
+/*
     if (this.parent.isPipelineCapable) {
       const plBuffer = {};
 
@@ -132,7 +133,7 @@ class SparseBitmapImpl {
       //const results = await pipeline.exec();
       /// XXX!
     }
-
+*/
     for (let wcX = fcX; wcX <= tcX; wcX++) {
       for (let wcY = fcY; wcY <= tcY; wcY++) {
         const chunkBytes = await bufferGetter(wcX, wcY);
@@ -144,8 +145,8 @@ class SparseBitmapImpl {
         for (let cByte = 0; cByte < chunkBytes.length; cByte++) {
           for (let bit = 0; bit < 8; bit++) {
             if (chunkBytes[cByte] & (1 << bit)) {
-              let ix = (wcX * rowWidth) + /*bit + */ (7 - bit) + ((cByte % (rowWidth / 8)) * 8);
-              let iy = ((((7 - bit) + /*bit +*/ (cByte * 8)) - ix + (wcX * rowWidth)) / rowWidth) + (wcY * rowWidth);
+              let ix = (wcX * rowWidth) + (7 - bit) + ((cByte % (rowWidth / 8)) * 8);
+              let iy = ((((7 - bit) + (cByte * 8)) - ix + (wcX * rowWidth)) / rowWidth) + (wcY * rowWidth);
               retList.push([ix, iy]);
             }
           }
@@ -213,9 +214,9 @@ class SparseBitmap {
         return false;
       }
   
-      /*if ('pipeline' in bs) {
+      if ('pipeline' in bs) {
         this.isPipelineCapable = true;
-      }*/
+      }
   
       return true;
     };

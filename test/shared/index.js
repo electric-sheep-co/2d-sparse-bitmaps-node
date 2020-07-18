@@ -42,38 +42,52 @@ async function setNRandomAndCheckInBounds(key, t, n, bitmap) {
   };
 
   for (let i = 0; i < n; i++) {
-    const rCoords = [ourRand(), ourRand()];
-    await bitmap.set(key, rCoords[0], rCoords[1]);
+    let rX, rY;
+    
+    do {
+      [rX, rY] = [ourRand(), ourRand()];
+    } while (rX in expectCoords && rY in expectCoords[rX]);
 
-    chkSetMinMax(rCoords);
+    await bitmap.set(key, rX, rY);
+    chkSetMinMax([rX, rY]);
 
-    if (!(rCoords[0] in expectCoords)) {
-      expectCoords[rCoords[0]] = {};
+    if (!(rX in expectCoords)) {
+      expectCoords[rX] = {};
     }
 
-    expectCoords[rCoords[0]][rCoords[1]] = true;
+    expectCoords[rX][rY] = true;
   }
 
   const inBounds = await bitmap.inBounds(key, {
     from: { x: limits.min[0], y: limits.min[1] },
     to: { x: limits.max[0], y: limits.max[1] }
-  }, false);//true);
+  });// true);
 
   const _dbg = async () => {
     const nonStrict = (await bitmap.inBounds(key, {
       from: { x: limits.min[0], y: limits.min[1] },
       to: { x: limits.max[0], y: limits.max[1] }
-    }, false));
+    }, true));
+
+    const leftover = [];
+    Object.keys(expectCoords).forEach((row) => {
+      Object.keys(expectCoords[row]).forEach((col) => {
+        if (expectCoords[row][col] === true) {
+          leftover.push([row, col]);
+        }
+      })
+    })
 
     return `\n\n${JSON.stringify(expectCoords)}\n${JSON.stringify(inBounds)}\n\n`
-      + `\n\nNON-STRICT (len=${nonStrict.length}): ${JSON.stringify(nonStrict)}`;
+      + `\n\nSTRICT (len=${nonStrict.length}): ${JSON.stringify(nonStrict)}`
+      + `\n\n${leftover.length} LEFTOVER: ${JSON.stringify(leftover)}`;
   };
-
+/*
   if (inBounds.length !== n) {
     t.fail(`lengths mismatch, ${inBounds.length} vs. n=${n}${(await _dbg())}`);
     return;
   }
-
+*/
   for (let rCoords of inBounds) {
     if (!(rCoords[0] in expectCoords)) {
       t.fail(`row miss - ${rCoords[0]} not in ${Object.keys(expectCoords)}${(await _dbg())}`);
@@ -82,9 +96,16 @@ async function setNRandomAndCheckInBounds(key, t, n, bitmap) {
 
     const row = expectCoords[rCoords[0]];
     if (!(rCoords[1] in row)) {
-      t.fail(`col miss - ${rCoords[1]} not in ${Object.keys(row)}${(await _dbg())}`);
+      t.fail(`col miss - (${row},${rCoords[1]}) not in ${Object.keys(row)}${(await _dbg())}`);
       return;
     }
+
+    row[rCoords[1]] = false;
+  }
+  
+  if (inBounds.length !== n) {
+    t.fail(`lengths mismatch, ${inBounds.length} vs. n=${n}${(await _dbg())}`);
+    return;
   }
 
   t.pass(`${key} list matches expected`);
