@@ -21,8 +21,8 @@ test('single coord', async function (t) {
   await bitmap.set(TestingKey, xRand, yRand);
 
   t.equal(await bitmap.get(TestingKey, xRand, yRand), 1);
-  t.false(await bitmap.get(TestingKey, xRand-1, yRand));
-  t.false(await bitmap.get(TestingKey, xRand, yRand-1));
+  t.equal(await bitmap.get(TestingKey, xRand-1, yRand), 0);
+  t.equal(await bitmap.get(TestingKey, xRand, yRand-1), 0);
 
   const boundsAdj = TwoDim.Defaults[TwoDim.ChunkWidthKey] / 2;
   const checkBounds = {
