@@ -1,19 +1,19 @@
 const test = require('tape');
-const TwoDim = require('../');
+const TwoD = require('../');
 
 const TestingKey = '__testing__';
 
 test('construct with no options', function (t) {
   t.plan(1);
-  const defaultInitBitmap = new TwoDim.SparseBitmap();
-  t.equal(typeof defaultInitBitmap.backingStore, typeof new TwoDim.DefaultStore());
+  const defaultInitBitmap = new TwoD.SparseBitmap();
+  t.equal(typeof defaultInitBitmap.backingStore, typeof new TwoD.DefaultStore());
 });
 
 test('single coord', async function (t) {
   t.plan(6);
 
-  const bitmap = new TwoDim.SparseBitmap();
-  const ourRand = () => Math.round(Math.random() * TwoDim.Defaults[TwoDim.ChunkWidthKey] * 10);
+  const bitmap = new TwoD.SparseBitmap();
+  const ourRand = () => Math.round(Math.random() * TwoD.Defaults[TwoD.ChunkWidthKey] * 10);
   const [xRand, yRand] = [ourRand(), ourRand()];
 
   console.log(`using random x,y: ${xRand},${yRand}`);
@@ -24,7 +24,7 @@ test('single coord', async function (t) {
   t.equal(await bitmap.get(TestingKey, xRand-1, yRand), 0);
   t.equal(await bitmap.get(TestingKey, xRand, yRand-1), 0);
 
-  const boundsAdj = TwoDim.Defaults[TwoDim.ChunkWidthKey] / 2;
+  const boundsAdj = TwoD.Defaults[TwoD.ChunkWidthKey] / 2;
   const checkBounds = {
     from: { x: xRand - boundsAdj, y: yRand - boundsAdj },
     to: { x: xRand + boundsAdj, y: yRand + boundsAdj}
