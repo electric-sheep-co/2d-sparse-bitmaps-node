@@ -44,7 +44,7 @@ test('single simple coord', async function (t) {
 });
 
 test('single random coord', async function (t) {
-  t.plan(7);
+  t.plan(5);
 
   const bitmap = new TwoD.SparseBitmap();
   const key = tKey('src');
@@ -53,10 +53,7 @@ test('single random coord', async function (t) {
   console.log(`using random x,y: ${xRand},${yRand}`);
 
   await bitmap.set(key, xRand, yRand);
-
   t.equal(await bitmap.get(key, xRand, yRand), 1);
-  t.equal(await bitmap.get(key, xRand-1, yRand), 0);
-  t.equal(await bitmap.get(key, xRand, yRand-1), 0);
 
   const boundsAdj = TwoD.Defaults[TwoD.ChunkWidthKey] / 2;
   const inBounds = await bitmap.inBounds(key, {
