@@ -24,8 +24,11 @@ class DefaultStore {
 
   getbit(key, bitPosition) {
     if (key in this.store) {
-      if (bitPosition in this.store[key]) {
-        return this.store[key][bitPosition];
+      const byteIdx = Math.floor(bitPosition / 8);
+      const innerPos = (bitPosition % 8);
+      const bitMask = 1 << innerPos;
+      if (byteIdx in this.store[key]) {
+        return (this.store[key][byteIdx] & bitMask) >> innerPos;
       }
     }
 
@@ -38,7 +41,7 @@ class DefaultStore {
     }
 
     const byteIdx = Math.floor(bitPosition / 8);
-    const inByteBitPos = bitPosition % 8;
+    const bitMask = 1 << (bitPosition % 8);
 
     // lazily initialize everything up to and including byteIdx that isn't already initialized
     if (!(byteIdx in this.store[key])) {
@@ -49,7 +52,13 @@ class DefaultStore {
       }
     }
 
-    this.store[key][byteIdx] |= (value == true ? 1 : 0) << inByteBitPos;
+    console.log(`setbit(${key}, ${bitPosition}, ${value}) -> byteIdx=${byteIdx} mask=${bitMask} --> ${this.store[key][byteIdx]}`);
+    if (value == true) {
+      this.store[key][byteIdx] |= bitMask;
+    } else {
+      this.store[key][byteIdx] &= ~bitMask;
+    }
+    console.log(`\t----> ${this.store[key][byteIdx]}`);
   }
 
   getBuffer(key) {
@@ -99,6 +108,8 @@ class SparseBitmapImpl {
     for (let wcX = fcX; wcX <= tcX; wcX++) {
       for (let wcY = fcY; wcY <= tcY; wcY++) {
         const chunkBytes = await this.parent[BackingStoreKey].getBuffer(this.key(bmType, wcX, wcY));
+        console.log(`buffer for chunk ${wcX},${wcY}:`);
+        console.log(chunkBytes);
 
         if (!chunkBytes || chunkBytes.length < 1) {
           continue;
@@ -187,22 +198,33 @@ class SparseBitmap {
       throw new Error(`invalid object given for '${BackingStoreKey}'`);
     }
 
+    this.coordBoundsCheck = (x, y) => {
+      if (x < 0 || y < 0) {
+        throw new Error(`coordinate bounds check: ${x},${y}`);
+      }
+    }
+
     this.impl = new SparseBitmapImpl(this);
   }
 
   async get(key, x, y) {
+    this.coordBoundsCheck(x, y);
     return this.impl.getSet(key, x, y);
   }
 
   async set(key, x, y) {
+    this.coordBoundsCheck(x, y);
     return this.impl.getSet(key, x, y, 1);
   }
 
   async unset(key, x, y) {
+    this.coordBoundsCheck(x, y);
     return this.impl.getSet(key, x, y, 0);
   }
 
   async inBounds(key, bounds) {
+    this.coordBoundsCheck(bounds.from.x, bounds.from.y);
+    this.coordBoundsCheck(bounds.to.x, bounds.to.y);
     return this.impl.allSetInBounds(key, bounds.from.x, bounds.from.y, bounds.to.x, bounds.to.y);
   }
 };

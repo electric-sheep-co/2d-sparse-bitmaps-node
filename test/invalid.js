@@ -21,3 +21,11 @@ test('construct with invalid chunk widths', function(t) {
   t.throws(function() { new TwoD.SparseBitmap({ [TwoD.ChunkWidthKey]: 23 }); });
   t.throws(function() { new TwoD.SparseBitmap({ [TwoD.ChunkWidthKey]: 12 }); });
 });
+
+test('negative coordinate', async function (t) {
+  t.plan(1);
+  const bitmap = new TwoD.SparseBitmap();
+  t.throws(function() { 
+    bitmap.get('negcoord', -1, -1); 
+  });
+});
