@@ -20,7 +20,7 @@ test('single coord', async function (t) {
 
   await bitmap.set(TestingKey, xRand, yRand);
 
-  t.equal(await bitmap.get(TestingKey, xRand, yRand), 0);
+  t.equal(await bitmap.get(TestingKey, xRand, yRand), 1);
   t.false(await bitmap.get(TestingKey, xRand-1, yRand));
   t.false(await bitmap.get(TestingKey, xRand, yRand-1));
 
