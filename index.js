@@ -213,9 +213,9 @@ class SparseBitmap {
         return false;
       }
   
-      if ('pipeline' in bs) {
+      /*if ('pipeline' in bs) {
         this.isPipelineCapable = true;
-      }
+      }*/
   
       return true;
     };
