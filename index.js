@@ -103,11 +103,39 @@ class SparseBitmapImpl {
     const [fcX, fcY] = this.chunkCoords(fromX, fromY);
     const [tcX, tcY] = this.chunkCoords(toX, toY);
     const rowWidth = this.parent[ChunkWidthKey];
+
     let retList = [];
+    let bufferGetter = async (bgX, bgY) => this.parent[BackingStoreKey].getBuffer(this.key(bmType, bgX, bgY));
+
+    if (this.parent.isPipelineCapable) {
+      const plBuffer = {};
+
+      bufferGetter = async (bgX, bgY) => {
+        if (bgX in plBuffer) {
+          if (bgY in plBuffer[bgX]) {
+            return plBuffer[bgX][bgY];
+          }
+        }
+      };
+
+      const pipeline = this.parent[BackingStoreKey].pipeline();
+      for (let wcX = fcX; wcX <= tcX; wcX++) {
+        if (!(wcX in plBuffer)) {
+          plBuffer[wcX] = {};
+        }
+
+        for (let wcY = fcY; wcY <= tcY; wcY++) {
+          pipeline.getBuffer(this.key(bmType, wcX, wcY));
+        }
+      }
+
+      //const results = await pipeline.exec();
+      /// XXX!
+    }
 
     for (let wcX = fcX; wcX <= tcX; wcX++) {
       for (let wcY = fcY; wcY <= tcY; wcY++) {
-        const chunkBytes = await this.parent[BackingStoreKey].getBuffer(this.key(bmType, wcX, wcY));
+        const chunkBytes = await bufferGetter(wcX, wcY);
 
         if (!chunkBytes || chunkBytes.length < 1) {
           continue;
@@ -126,7 +154,7 @@ class SparseBitmapImpl {
     }
 
     // strict includes only blocks within the specified bounding box and sorts them in CW order;
-    // otherwise, all blocks within the *chunks* the specified bound box *hits* are included
+    // otherwise, all blocks within the *chunks* that the specified bound box *touches* are included
     if (strict) {
       retList = retList.filter(x => x[0] >= fromX && x[1] >= fromY && x[0] <= toX && x[1] <= toY);
 
