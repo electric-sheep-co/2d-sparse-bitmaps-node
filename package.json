@@ -1,15 +1,20 @@
 {
   "name": "2d-sparse-bitmaps",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "Two-dimensional sparse bitmaps",
+  "homepage": "https://github.com/electric-sheep-co/2d-sparse-bitmaps-node",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/electric-sheep-co/2d-sparse-bitmaps-node.git"
+  },
   "main": "index.js",
   "scripts": {
     "test-only": "tape test/*.js",
     "lint": "eslint .",
     "test": "eslint . && tape test/*.js"
   },
-  "author": "",
-  "license": "ISC",
+  "author": "Ryan Joseph <ryan@electricsheep.co> (https://electricsheep.co)",
+  "license": "MIT",
   "devDependencies": {
     "eslint": "^7.4.0",
     "ioredis": "^4.17.3",
