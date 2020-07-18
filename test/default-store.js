@@ -37,6 +37,26 @@ test('1,1 coord', async function (t) {
   await singleSetTestUnset('zzc', t, 1, 1);
 });
 
+test('small chunk', async function (t) {
+  t.plan(4);
+
+  const scBitmap = new TwoD.SparseBitmap({
+    [TwoD.ChunkWidthKey]: 16
+  });
+
+  const key = `${TestingKey}:small`;
+  await scBitmap.set(key, 0, 17);
+  t.equal(await scBitmap.get(key, 0, 17), 1);
+  const inBounds = await scBitmap.inBounds(key, {
+    from: { x: 0, y: 0 },
+    to: { x: 32, y: 32 }
+  });
+
+  t.equal(inBounds.length, 1);
+  t.equal(inBounds[0][0], 0);
+  t.equal(inBounds[0][1], 17);
+});
+
 test('single simple coord', async function (t) {
   const coord = TwoD.Defaults[TwoD.ChunkWidthKey] / 2;
   await singleSetTestUnset('ssc', t, coord, coord);
@@ -59,12 +79,10 @@ test('single random coord', async function (t) {
   t.equal(await bitmap.get(key, xRand, yRand-1), 0);
 
   const boundsAdj = TwoD.Defaults[TwoD.ChunkWidthKey] / 2;
-  const checkBounds = {
-    from: { x: xRand - boundsAdj, y: yRand - boundsAdj },
+  const inBounds = await bitmap.inBounds(key, {
+    from: { x: Math.max(xRand - boundsAdj, 0), y: Math.max(yRand - boundsAdj, 0) },
     to: { x: xRand + boundsAdj, y: yRand + boundsAdj}
-  };
-  const inBounds = await bitmap.inBounds(key, checkBounds);
-  console.log(`inBounds(${JSON.stringify(checkBounds)}) -> ${JSON.stringify(inBounds)}`);
+  });
 
   t.equal(inBounds.length, 1);
   t.equal(inBounds[0][0], xRand);

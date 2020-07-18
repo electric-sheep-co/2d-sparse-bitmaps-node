@@ -1,4 +1,4 @@
-const test = require('tape');
+const test = require('tape-promise').default(require('tape'));
 const TwoD = require('../');
 
 test('construct with invalid backing store', function(t) {
@@ -24,8 +24,8 @@ test('construct with invalid chunk widths', function(t) {
 
 test('negative coordinate', async function (t) {
   t.plan(1);
-  const bitmap = new TwoD.SparseBitmap();
-  t.throws(function() { 
-    bitmap.get('negcoord', -1, -1); 
+  t.rejects(async function() {
+    const bitmap = new TwoD.SparseBitmap();
+    await bitmap.get('negcoord', -1, -1); 
   });
 });

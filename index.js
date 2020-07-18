@@ -43,7 +43,7 @@ class DefaultStore {
     const byteIdx = Math.floor(bitPosition / 8);
     const bitMask = 1 << (bitPosition % 8);
 
-    // lazily initialize everything up to and including byteIdx that isn't already initialized
+    // lazily initialize everything up to and including byteIdx, if it isn't already initialized
     if (!(byteIdx in this.store[key])) {
       for (let bi = 0; bi <= byteIdx; bi++) {
         if (!(bi in this.store[key])) {
@@ -52,13 +52,11 @@ class DefaultStore {
       }
     }
 
-    console.log(`setbit(${key}, ${bitPosition}, ${value}) -> byteIdx=${byteIdx} mask=${bitMask} --> ${this.store[key][byteIdx]}`);
     if (value == true) {
       this.store[key][byteIdx] |= bitMask;
     } else {
       this.store[key][byteIdx] &= ~bitMask;
     }
-    console.log(`\t----> ${this.store[key][byteIdx]}`);
   }
 
   getBuffer(key) {
@@ -76,11 +74,13 @@ class SparseBitmapImpl {
   }
 
   chunkCoords(x, y) {
-    return [Math.floor(Number(x) / this.parent[ChunkWidthKey]), Math.floor(Number(y) / this.parent[ChunkWidthKey])];
+    const cWidth = this.parent[ChunkWidthKey];
+    return [Math.floor(Number(x) / cWidth), Math.floor(Number(y) / cWidth)];
   }
 
   bitPosition(chunkXY, x, y) {
-    return (Number(x) - (chunkXY[0] * this.parent[ChunkWidthKey])) + ((Number(y) - (chunkXY[1] * this.parent[ChunkWidthKey])) * this.parent[ChunkWidthKey]);
+    const cWidth = this.parent[ChunkWidthKey];
+    return (Number(x) - (chunkXY[0] * cWidth)) + ((Number(y) - (chunkXY[1] * cWidth)) * cWidth);
   }
 
   key(bmType, cX, cY) {
@@ -95,7 +95,7 @@ class SparseBitmapImpl {
     if (setVal === undefined) {
       return this.parent[BackingStoreKey].getbit(this.key(bmType, cX, cY), bitPos);
     } else {
-      return this.parent[BackingStoreKey].setbit(this.key(bmType, cX, cY), bitPos, Number(setVal));
+      return this.parent[BackingStoreKey].setbit(this.key(bmType, cX, cY), bitPos, setVal == true ? 1 : 0);
     }
   };
 
@@ -108,8 +108,6 @@ class SparseBitmapImpl {
     for (let wcX = fcX; wcX <= tcX; wcX++) {
       for (let wcY = fcY; wcY <= tcY; wcY++) {
         const chunkBytes = await this.parent[BackingStoreKey].getBuffer(this.key(bmType, wcX, wcY));
-        console.log(`buffer for chunk ${wcX},${wcY}:`);
-        console.log(chunkBytes);
 
         if (!chunkBytes || chunkBytes.length < 1) {
           continue;
@@ -118,8 +116,8 @@ class SparseBitmapImpl {
         for (let cByte = 0; cByte < chunkBytes.length; cByte++) {
           for (let bit = 0; bit < 8; bit++) {
             if (chunkBytes[cByte] & (1 << bit)) {
-              let ix = (wcX * rowWidth) + (7 - bit) + ((cByte % (rowWidth / 8)) * 8);
-              let iy = ((((7 - bit) + (cByte * 8)) - ix + (wcX * rowWidth)) / rowWidth) + (wcY * rowWidth);
+              let ix = (wcX * rowWidth) + bit + /* (7 - bit) + */ ((cByte % (rowWidth / 8)) * 8);
+              let iy = (((/*(7 - bit) + */bit + (cByte * 8)) - ix + (wcX * rowWidth)) / rowWidth) + (wcY * rowWidth);
               retList.push([ix, iy]);
             }
           }
