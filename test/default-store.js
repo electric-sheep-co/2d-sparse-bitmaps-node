@@ -18,7 +18,7 @@ async function singleSetTestUnset(key, t, x, y) {
 test('construct with no options', function (t) {
   t.plan(1);
   const defaultInitBitmap = new TwoD.SparseBitmap();
-  t.equal(typeof defaultInitBitmap.backingStore, typeof new TwoD.DefaultStore());
+  t.equal(typeof defaultInitBitmap.backingStore, typeof new TwoD.InMemoryStore());
 });
 
 test('0,0 coord', async function (t) {

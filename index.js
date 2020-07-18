@@ -17,7 +17,7 @@ const LimitChecks = {
 };
 
 // a very simple, unoptimized store provided as an example implementation & last-chance default
-class DefaultStore {
+class InMemoryStore {
   constructor() {
     this.store = {};
   }
@@ -163,7 +163,7 @@ class SparseBitmap {
     this[KeyPrefixKey] = options[KeyPrefixKey];
 
     if (!(BackingStoreKey in options)) {
-      this[BackingStoreKey] = new DefaultStore();
+      this[BackingStoreKey] = new InMemoryStore();
     } else {
       this[BackingStoreKey] = options[BackingStoreKey];
     }
@@ -229,7 +229,7 @@ class SparseBitmap {
 
 module.exports = {
   SparseBitmap,
-  DefaultStore,
+  InMemoryStore,
   BackingStoreKey,
   ChunkWidthKey,
   Defaults
