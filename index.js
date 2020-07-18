@@ -154,19 +154,10 @@ class SparseBitmapImpl {
       }
     }
 
-    // strict includes only blocks within the specified bounding box and sorts them in CW order;
-    // otherwise, all blocks within the *chunks* that the specified bound box *touches* are included
+    // strict includes *only* coordinates within the specified bounding box, otherwise all coordinates
+    // within the *chunks* intersected by the specified bounding box are returned
     if (strict) {
       retList = retList.filter(x => x[0] >= fromX && x[1] >= fromY && x[0] <= toX && x[1] <= toY);
-
-      // sort in clockwise order
-      retList.sort((a, b) => {
-        const xDiff = a[0] - b[0];
-        if (xDiff === 0) {
-          return a[1] - b[1];
-        }
-        return xDiff;
-      });
     }
 
     return retList;
