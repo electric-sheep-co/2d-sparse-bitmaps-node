@@ -67,7 +67,7 @@ test('historic - out-of-bounds 1', async function (t) {
 
 const oob1ExpectedNum = 42;
 
-const oob1CheckBounds = {"from":{"x":22,"y":35},"to":{"x":1275,"y":1134}};
+const oob1CheckBounds = {"from":{"x":22,"y":35},"to":{"x":1275,"y":1167}};
 
 const oob1Expected = {
   "22": {
