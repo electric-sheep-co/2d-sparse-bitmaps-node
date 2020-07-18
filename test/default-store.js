@@ -75,7 +75,7 @@ test('42 random coords', async function (t) {
 
 test('rand random coords', async function (t) {
   const nRand = Math.floor(512 + Math.random() * 512);
-  console.log(`using nRand=${nRand}`);
+  console.log(`using n=${nRand}`);
   await setNRandomAndCheckInBounds(`rand${nRand}rand`, t, nRand, new TwoD.SparseBitmap());
 });
 
@@ -85,6 +85,6 @@ test('42 random coords - strict', async function (t) {
 
 test('rand random coords - strict', async function (t) {
   const nRand = Math.floor(512 + Math.random() * 512);
-  console.log(`using nRand=${nRand}`);
+  console.log(`using n=${nRand}`);
   await setNRandomAndCheckInBounds(`rand${nRand}rand`, t, nRand, new TwoD.SparseBitmap(), true);
 });

@@ -38,7 +38,7 @@ test('local redis - 42 random, non-strict', async function (t) {
 
 test('local redis - random random, non-strict', async function (t) {
   const nRand = Math.floor(512 + Math.random() * 512);
-  console.log(`using nRand=${nRand}`);
+  console.log(`using n=${nRand}`);
   await execWithLocal(async (bitmap) => shared.setNRandomAndCheckInBounds(`rRand${nRand}Rand`, t, nRand, bitmap));
 });
 
@@ -48,6 +48,19 @@ test('local redis - 42 random, strict', async function (t) {
 
 test('local redis - random random, strict', async function (t) {
   const nRand = Math.floor(512 + Math.random() * 512);
-  console.log(`using nRand=${nRand}`);
+  console.log(`using n=${nRand}`);
   await execWithLocal(async (bitmap) => shared.setNRandomAndCheckInBounds(`rRand${nRand}Rand`, t, nRand, bitmap, true));
+});
+
+test('local redis pipeline compare - default', async function (t) {
+  await execWithLocal(async (bitmap) => {
+    return shared.setNRandomAndCheckInBounds(`421`, t, 421, bitmap, true);
+  });
+});
+
+test('local redis pipeline compare - NO pipeline', async function (t) {
+  await execWithLocal(async (bitmap) => {
+    bitmap.isPipelineCapable = false;
+    return shared.setNRandomAndCheckInBounds(`421-NP`, t, 421, bitmap, true);
+  });
 });

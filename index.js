@@ -107,7 +107,6 @@ class SparseBitmapImpl {
     let retList = [];
     let bufferGetter = async (bgX, bgY) => this.parent[BackingStoreKey].getBuffer(this.key(bmType, bgX, bgY));
 
-/*
     if (this.parent.isPipelineCapable) {
       const plBuffer = {};
 
@@ -126,14 +125,20 @@ class SparseBitmapImpl {
         }
 
         for (let wcY = fcY; wcY <= tcY; wcY++) {
-          pipeline.getBuffer(this.key(bmType, wcX, wcY));
+          pipeline.getBuffer(this.key(bmType, wcX, wcY), function (err, result) {
+            if (err) {
+              throw new Error(`pipeline.getBuffer: shouldn't happen! ${err}`);
+            }
+
+            plBuffer[wcX][wcY] = result;
+          });
         }
       }
 
-      //const results = await pipeline.exec();
-      /// XXX!
+      await pipeline.exec();
+      bufferGetter = async (bgX, bgY) => plBuffer[bgX][bgY];
     }
-*/
+
     for (let wcX = fcX; wcX <= tcX; wcX++) {
       for (let wcY = fcY; wcY <= tcY; wcY++) {
         const chunkBytes = await bufferGetter(wcX, wcY);

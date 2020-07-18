@@ -1,7 +1,7 @@
 const TwoD = require('../../');
 
-const TestingKey = '__testing__';
-const OurRandMaxMult = 10;
+const TestingKey = 'testing';
+const OurRandMaxMult = 127;
 
 const tKey = (key) => `${TestingKey}:${key}:${Date.now()}`;
 const ourRand = () => Math.round(Math.random() * TwoD.Defaults[TwoD.ChunkWidthKey] * OurRandMaxMult);
@@ -22,6 +22,7 @@ async function singleSetTestUnset(key, t, x, y, bitmap = undefined) {
 }
 
 async function setNRandomAndCheckInBounds(key, t, n, bitmap, strict = false) {
+  const _s = process.hrtime.bigint();
   key = tKey(`setNRand:${key}`);
   const expectCoords = {};
 
@@ -65,35 +66,20 @@ async function setNRandomAndCheckInBounds(key, t, n, bitmap, strict = false) {
     to: { x: limits.max[0], y: limits.max[1] }
   };
 
+  const bWidth = bounds.to.x - bounds.from.x;
+  const bHeight = bounds.to.y - bounds.from.y;
+  console.log(`bounds encompass ${bWidth*bHeight} bits (${bWidth} x ${bHeight})`);
   const inBounds = await bitmap.inBounds(key, bounds, strict);
-
-  const _dbg = async () => {
-    const nonStrict = (await bitmap.inBounds(key, bounds, !strict));
-
-    const leftover = [];
-    Object.keys(expectCoords).forEach((row) => {
-      Object.keys(expectCoords[row]).forEach((col) => {
-        if (expectCoords[row][col] === true) {
-          leftover.push([row, col]);
-        }
-      })
-    })
-
-    return `\n\nBOUNDS: ${JSON.stringify(bounds)}\n\nEXPECTED: ${JSON.stringify(expectCoords)}`
-      + `\n\nIN-BOUNDS: ${JSON.stringify(inBounds)}\n\n`
-      + `\n\nSTRICT(${strict}) (len=${nonStrict.length}): ${JSON.stringify(nonStrict)}`
-      + `\n\n${leftover.length} LEFTOVER: ${JSON.stringify(leftover)}`;
-  };
   
   for (let rCoords of inBounds) {
     if (!(rCoords[0] in expectCoords)) {
-      t.fail(`row miss - ${rCoords[0]} not in ${Object.keys(expectCoords)}${(await _dbg())}`);
+      t.fail(`row miss - ${rCoords[0]} not in ${Object.keys(expectCoords)}`);
       return;
     }
 
     const row = expectCoords[rCoords[0]];
     if (!(rCoords[1] in row)) {
-      t.fail(`col miss - (${row},${rCoords[1]}) not in ${Object.keys(row)}${(await _dbg())}`);
+      t.fail(`col miss - (${row},${rCoords[1]}) not in ${Object.keys(row)}`);
       return;
     }
 
@@ -101,10 +87,11 @@ async function setNRandomAndCheckInBounds(key, t, n, bitmap, strict = false) {
   }
   
   if (inBounds.length !== n) {
-    t.fail(`lengths mismatch, ${inBounds.length} vs. n=${n}${(await _dbg())}`);
+    t.fail(`lengths mismatch, ${inBounds.length} vs. n=${n}`);
     return;
   }
 
+  console.log(`${key} took ${process.hrtime.bigint() - _s} ns`);
   t.pass(`${key} list matches expected`);
 }
 
