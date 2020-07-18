@@ -13,8 +13,10 @@ while [ $? -eq 0 ]; do
   fi
 
   COUNT=$[$COUNT+1]
-  echo "*** iteration ${COUNT}"
+  KCOUNT=$(redis-cli --raw keys \* | wc -l)
+  echo "*** iteration ${COUNT}, clearing local redis (currently ${KCOUNT} keys)"
   redis-cli --raw keys \* | xargs -I{} redis-cli --raw del {} > /dev/null
+  echo "*** iteration ${COUNT}, testing"
   npm test
 done
 
