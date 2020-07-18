@@ -220,10 +220,10 @@ class SparseBitmap {
     return this.impl.getSet(key, x, y, 0);
   }
 
-  async inBounds(key, bounds) {
+  async inBounds(key, bounds, strict = false) {
     this.coordBoundsCheck(bounds.from.x, bounds.from.y);
     this.coordBoundsCheck(bounds.to.x, bounds.to.y);
-    return this.impl.allSetInBounds(key, bounds.from.x, bounds.from.y, bounds.to.x, bounds.to.y);
+    return this.impl.allSetInBounds(key, bounds.from.x, bounds.from.y, bounds.to.x, bounds.to.y, strict);
   }
 };
 
