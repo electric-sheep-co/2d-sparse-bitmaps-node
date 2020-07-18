@@ -1,0 +1,22 @@
+# local redis - 42 random
+not ok 39 lengths mismatch, 41 vs. n=42 {"11":{"1127":true},"29":{"128":true},"36":{"432":true},"70":{"334":true},"108":{"1136":true},"138":{"357":true},"139":{"698":true},"147":{"83":true},"154":{"479":true},"207":{"243":true},"215":{"433":true},"233":{"22":true},"237":{"1051":true},"270":{"815":true},"296":{"919":true},"317":{"853":true},"322":{"84":true},"331":{"416":true},"347":{"265":true},"388":{"1185":true},"442":{"774":true},"452":{"879":true},"477":{"128":true},"627":{"732":true},"629":{"232":true},"644":{"1257":true},"718":{"789":true},"719":{"271":true},"725":{"442":true},"735":{"1067":true},"799":{"469":true},"821":{"773":true},"973":{"114":true},"1009":{"783":true},"1019":{"202":true},"1026":{"206":true},"1099":{"923":true},"1112":{"508":true},"1173":{"820":true},"1221":{"259":true},"1266":{"1033":true},"1270":{"114":true}} [[11,1127],[29,128],[36,432],[70,334],[108,1136],[138,357],[139,698],[147,83],[154,479],[207,243],[215,433],[233,22],[237,1051],[270,815],[296,919],[317,853],[322,84],[331,416],[347,265],[388,1185],[442,774],[452,879],[477,128],[627,732],[629,232],[644,1257],[718,789],[719,271],[725,442],[735,1067],[799,469],[821,773],[973,114],[1009,783],[1019,202],[1026,206],[1099,923],[1112,508],[1173,820],[1221,259],[1266,1033]]
+  ---
+    operator: fail
+    at: Object.setNRandomAndCheckInBounds (/home/ryan/local-repos/2d-sparse-bitmaps/test/shared/index.js:63:7)
+    stack: |-
+      Error: lengths mismatch, 41 vs. n=42
+
+      {"11":{"1127":true},"29":{"128":true},"36":{"432":true},"70":{"334":true},"108":{"1136":true},"138":{"357":true},"139":{"698":true},"147":{"83":true},"154":{"479":true},"207":{"243":true},"215":{"433":true},"233":{"22":true},"237":{"1051":true},"270":{"815":true},"296":{"919":true},"317":{"853":true},"322":{"84":true},"331":{"416":true},"347":{"265":true},"388":{"1185":true},"442":{"774":true},"452":{"879":true},"477":{"128":true},"627":{"732":true},"629":{"232":true},"644":{"1257":true},"718":{"789":true},"719":{"271":true},"725":{"442":true},"735":{"1067":true},"799":{"469":true},"821":{"773":true},"973":{"114":true},"1009":{"783":true},"1019":{"202":true},"1026":{"206":true},"1099":{"923":true},"1112":{"508":true},"1173":{"820":true},"1221":{"259":true},"1266":{"1033":true},"1270":{"114":true}}
+      [[11,1127],[29,128],[36,432],[70,334],[108,1136],[138,357],[139,698],[147,83],[154,479],[207,243],[215,433],[233,22],[237,1051],[270,815],[296,919],[317,853],[322,84],[331,416],[347,265],[388,1185],[442,774],[452,879],[477,128],[627,732],[629,232],[644,1257],[718,789],[719,271],[725,442],[735,1067],[799,469],[821,773],[973,114],[1009,783],[1019,202],[1026,206],[1099,923],[1112,508],[1173,820],[1221,259],[1266,1033]]
+
+
+          at Test.assert [as _assert] (/home/ryan/local-repos/2d-sparse-bitmaps/node_modules/tape/lib/test.js:260:54)
+          at Test.bound [as _assert] (/home/ryan/local-repos/2d-sparse-bitmaps/node_modules/tape/lib/test.js:84:32)
+          at Test.fail (/home/ryan/local-repos/2d-sparse-bitmaps/node_modules/tape/lib/test.js:354:10)
+          at Test.bound [as fail] (/home/ryan/local-repos/2d-sparse-bitmaps/node_modules/tape/lib/test.js:84:32)
+          at Object.setNRandomAndCheckInBounds (/home/ryan/local-repos/2d-sparse-bitmaps/test/shared/index.js:63:7)
+          at processTicksAndRejections (internal/process/task_queues.js:97:5)
+          at async execWithLocal (/home/ryan/local-repos/2d-sparse-bitmaps/test/ioredis.js:11:3)
+          at async Test.<anonymous> (/home/ryan/local-repos/2d-sparse-bitmaps/test/ioredis.js:36:3)
+  ...
+ok 40 __testing__:setNRand:rLocal:1595049619049 list matches expected

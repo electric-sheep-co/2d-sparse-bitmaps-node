@@ -6,10 +6,13 @@ const OurRandMaxMult = 10;
 const tKey = (key) => `${TestingKey}:${key}:${Date.now()}`;
 const ourRand = () => Math.round(Math.random() * TwoD.Defaults[TwoD.ChunkWidthKey] * OurRandMaxMult);
 
-async function singleSetTestUnset(key, t, x, y) {
+async function singleSetTestUnset(key, t, x, y, bitmap = undefined) {
   t.plan(2);
 
-  const bitmap = new TwoD.SparseBitmap();
+  if (!bitmap) {
+    bitmap = new TwoD.SparseBitmap();
+  }
+
   key = tKey(key);
 
   await bitmap.set(key, x, y);
@@ -19,8 +22,6 @@ async function singleSetTestUnset(key, t, x, y) {
 }
 
 async function setNRandomAndCheckInBounds(key, t, n, bitmap) {
-  t.plan(n + 1);
-
   key = tKey(`setNRand:${key}`);
   const expectCoords = {};
 
@@ -58,8 +59,25 @@ async function setNRandomAndCheckInBounds(key, t, n, bitmap) {
     to: { x: limits.max[0], y: limits.max[1] }
   }, true);
 
-  t.equal(inBounds.length, n);
-  inBounds.forEach((rCoords) => t.true(expectCoords[rCoords[0]][rCoords[1]]));
+  if (inBounds.length !== n) {
+    t.fail(`lengths mismatch, ${inBounds.length} vs. n=${n}`
+      + `\n\n${JSON.stringify(expectCoords)}\n${JSON.stringify(inBounds)}\n\n`);
+  }
+
+  inBounds.forEach((rCoords) => {
+    if (!(rCoords[0] in expectCoords)) {
+      t.fail(`row miss - ${rCoords[0]} not in ${Object.keys(expectCoords)}`
+        + `\n\n${JSON.stringify(expectCoords)}\n${JSON.stringify(inBounds)}\n\n`);
+    }
+
+    const row = expectCoords[rCoords[0]];
+    if (!(rCoords[1] in row)) {
+      t.fail(`col miss - ${rCoords[1]} not in ${Object.keys(row)}`
+        + `\n\n${JSON.stringify(expectCoords)}\n${JSON.stringify(inBounds)}\n\n`);
+    }
+  });
+
+  t.pass(`${key} list matches expected`);
 }
 
 module.exports = {

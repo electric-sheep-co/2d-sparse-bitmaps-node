@@ -26,9 +26,9 @@ class InMemoryStore {
     if (key in this.store) {
       const byteIdx = Math.floor(bitPosition / 8);
       const innerPos = (bitPosition % 8);
-      const bitMask = 1 << innerPos;
+      const bitMask = 0x80 >> innerPos;
       if (byteIdx in this.store[key]) {
-        return (this.store[key][byteIdx] & bitMask) >> innerPos;
+        return (this.store[key][byteIdx] & bitMask) >> (7 - innerPos);
       }
     }
 
@@ -41,7 +41,7 @@ class InMemoryStore {
     }
 
     const byteIdx = Math.floor(bitPosition / 8);
-    const bitMask = 1 << (bitPosition % 8);
+    const bitMask = 0x80 >> (bitPosition % 8);
 
     // lazily initialize everything up to and including byteIdx, if it isn't already initialized
     if (!(byteIdx in this.store[key])) {
@@ -144,8 +144,8 @@ class SparseBitmapImpl {
         for (let cByte = 0; cByte < chunkBytes.length; cByte++) {
           for (let bit = 0; bit < 8; bit++) {
             if (chunkBytes[cByte] & (1 << bit)) {
-              let ix = (wcX * rowWidth) + bit + /* (7 - bit) + */ ((cByte % (rowWidth / 8)) * 8);
-              let iy = (((/*(7 - bit) + */bit + (cByte * 8)) - ix + (wcX * rowWidth)) / rowWidth) + (wcY * rowWidth);
+              let ix = (wcX * rowWidth) + /*bit + */ (7 - bit) + ((cByte % (rowWidth / 8)) * 8);
+              let iy = ((((7 - bit) + /*bit +*/ (cByte * 8)) - ix + (wcX * rowWidth)) / rowWidth) + (wcY * rowWidth);
               retList.push([ix, iy]);
             }
           }

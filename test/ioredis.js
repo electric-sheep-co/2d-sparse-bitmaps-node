@@ -3,6 +3,18 @@ const Redis = require('ioredis');
 const TwoD = require('../');
 const shared = require('./shared');
 
+const execWithLocal = async (eFunc) => {
+  const bitmap = new TwoD.SparseBitmap({
+    [TwoD.BackingStoreKey]: new Redis('localhost', 6379)
+  });
+
+  await eFunc(bitmap);
+  bitmap[TwoD.BackingStoreKey].disconnect();
+};
+
+const singleLocal = async (t, x, y) => 
+  execWithLocal(async (bitmap) => shared.singleSetTestUnset('rLocal', t, x, y, bitmap));
+
 test('construct with lazyConnect ioredis instance', function (t) {
   t.plan(2);
   
@@ -15,16 +27,11 @@ test('construct with lazyConnect ioredis instance', function (t) {
   });
 });
 
-test('local redis instance via REDIS_LOCAL_PWD', async function (t) {
-  if (!('REDIS_LOCAL_PWD' in process.env)) {
-    console.log('\nWARNING: Skipping local ioredis integration test');
-    t.end();
-    return;
-  }
+test('local redis - 0,0', async function (t) { await singleLocal(t, 0, 0); });
+test('local redis - 0,1', async function (t) { await singleLocal(t, 0, 1); });
+test('local redis - 1,0', async function (t) { await singleLocal(t, 1, 0); });
+test('local redis - 1,1', async function (t) { await singleLocal(t, 1, 1); });
 
-  await shared.setNRandomAndCheckInBounds('rLocal', t, 42, new TwoD.SparseBitmap({
-    [TwoD.BackingStoreKey]: new Redis('localhost', 6379, {
-      'password': process.env.REDIS_LOCAL_PWD
-    })
-  }));
+test('local redis - 42 random', async function (t) {
+  await execWithLocal(async (bitmap) => shared.setNRandomAndCheckInBounds('rLocal', t, 42, bitmap));
 });
