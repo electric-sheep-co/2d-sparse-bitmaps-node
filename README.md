@@ -111,10 +111,10 @@ const bBox = { … };
 const occupiedInBounds = await occupiedBitmap.inBounds(bBox);
 ```
 
-[1]: /workflows/CI/badge.svg?branch=main
-[2]: /actions?query=workflow%3ACI
+[1]: https://github.com/electric-sheep-co/2d-sparse-bitmaps-node/workflows/CI/badge.svg?branch=main
+[2]: https://github.com/electric-sheep-co/2d-sparse-bitmaps-node/actions?query=workflow%3ACI
 [3]: https://david-dm.org/electric-sheep-co/2d-sparse-bitmaps-node.svg
 [4]: https://david-dm.org/electric-sheep-co/2d-sparse-bitmaps-node
 [5]: https://david-dm.org/electric-sheep-co/2d-sparse-bitmaps-node/dev-status.svg
 [6]: https://david-dm.org/electric-sheep-co/2d-sparse-bitmaps-node?type=dev
-[7]: /#backing-store-interface
+[7]: https://github.com/electric-sheep-co/2d-sparse-bitmaps-node/#backing-store-interface
