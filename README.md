@@ -18,6 +18,12 @@ await bitmap.set('so-far-away', 0, 0);
 await bitmap.set('so-far-away', 1e6, 1e6);
 ```
 
+## Installation
+
+```shell
+$ npm install 2d-sparse-bitmaps
+```
+
 ## Instantiation
 
 With the default in-memory store:
@@ -47,23 +53,23 @@ setbit(key, bitPosition, value);
 getBuffer(key);
 ```
 
-and may optionally implement `pipeline()`, which must return an instance implementing the aforementioned interface *plus* `exec()` for pipeline execution. 
+It may optionally implement `pipeline()`, which must return an instance implementing the aforementioned interface *plus* `exec()` for pipeline execution; additionally, the backing store interface methods of this instance must accept an additional callback argument of type `function (err, result)`.
 
-The backing store interface methods must also accept an additional callback argument of type `function (err, result)`.
-
-The default [`InMemoryStore`](stores/in-memory.js) provides an example implementation (sans `pipeline()` et. al).
+The default [`InMemoryStore`](stores/in-memory.js) provides an example implementation sans `pipeline()` et. al.
 
 ### Full options
 
 | Constant Name | Description | Default | Restrictions |
 | --- | --- | --- | --- |
-| `ChunkWidthKey` | The width of each chunk in the sparse bitmap; eack chunk requires up to `(X / 8) * X` bytes of storage (where `X` is the chosen chunk width) | 128 | >= 8, must be a multiple of 8 |
+| `ChunkWidthKey` | The width in bits of each chunk in the sparse bitmap | 128 | >= 8, must be a multiple of 8 |
 | `KeyPrefixKey` | The string preprended to each `key` before being passed onto the backing store. | `sparse-bitmap` | none |
 | `BackingStoreKey` | The backing store instance to be used.  | [`InMemoryStore`](stores/in-memory.js) | Must conform to the [aforementioned interface][7]. |
 
+Each chunk requires up to `(X / 8) * X` bytes of storage, where `X` is the chosen chunk width. Accordingly, the default chunk width of 128 requires 2048 bytes per chunk.
+
 ## Usage
 
-Currently limited to _unsigned_ coordinates.
+All coordinates must be _unsigned_, a limitation that may be removed in future releases.
 
 ### Get a bit in `key` at `(x, y)`:
 
@@ -85,8 +91,7 @@ await bitmap.unset(key, x, y);
 
 ### Get all set bits within given bounds:
 
-Within the bounding box definition - here named `bBox` - `from` is the top-left
-coordinate and `to` is the bottom-right coordinate:
+Within the bounding box definition - here named `bBox` - `from` is the top-left coordinate and `to` is the bottom-right coordinate:
 
 ```javascript
 const bBox = {
