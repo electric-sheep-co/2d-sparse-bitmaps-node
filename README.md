@@ -8,7 +8,7 @@ A two-dimensional sparse bitmap implementation for [Node.js](https://nodejs.org/
 
 Allows for flexible backing store choice, with the primary supported being [Redis](http://redis.io/) via [`ioredis`](https://github.com/luin/ioredis).
 
-The following example needs only 64 bytes to represent two coordinates which are ~1,414,213 units distant each other on the diagonal:
+The underlying "chunked" implementation is quite efficient; the following example needs only 64 bytes to represent two coordinates which are ~1,414,213 units distant each other on the diagonal:
 
 ```javascript
 const TwoD = require('2d-sparse-bitmaps');
@@ -55,11 +55,13 @@ The backing store interface methods must also accept an additional callback argu
 
 | Constant Name | Description | Default | Restrictions |
 | --- | --- | --- | --- |
-| `ChunkWidthKey` | The width of each chunk in the sparse bitmap; eack chunk requires up to `(X / 8) * X` bytes of storage (where `X` is the chosen chunk width) | 128 (2,048 bytes) | >= 8, must be a multiple of 8 |
+| `ChunkWidthKey` | The width of each chunk in the sparse bitmap; eack chunk requires up to `(X / 8) * X` bytes of storage (where `X` is the chosen chunk width) | 128 | >= 8, must be a multiple of 8 |
 | `KeyPrefixKey` | The string preprended to each `key` before being passed onto the backing store. | `twodim-sparse-bitmap` | none |
 | `BackingStoreKey` | The backing store instance to be used.  | `InMemoryStore` | Must conform to the [aforementioned interface][7]. |
 
 ## Usage
+
+Currently limited to _unsigned_ coordinates.
 
 ### Get a bit in `key` at `(x, y)`:
 
@@ -81,7 +83,7 @@ await bitmap.unset(key, x, y);
 
 ### Get all set bits within given bounds:
 
-Finds all bits set in `key` within the bounding box defined by `bBox`, where `from` is the top-left
+Within the bounding box definition - here named `bBox` - `from` is the top-left
 coordinate and `to` is the bottom-right coordinate:
 
 ```javascript
@@ -99,17 +101,55 @@ Has a third optional parameter, `strict`, which if set to `true` will cull the l
 
 ### Get an instance bound to `key`:
 
-The returned instance has the same methods as above but all _no longer take_ the `key` argument:
+The returned instance has the same interace as above _except_ that all methods _no longer take_ the `key` argument:
 
 ```javascript
 const occupiedBitmap = bitmap.boundToKey('occupied');
-
 await occupiedBitmap.set(x, y);
-// …
-
-const bBox = { … };
-const occupiedInBounds = await occupiedBitmap.inBounds(bBox);
+const check = await occupiedBitmap.get(x, y);
+await occupiedBitmap.unset(x, y);
+const occupiedInBounds = await occupiedBitmap.inBounds({ … });
 ```
+
+## Contributing
+
+Any and all contributions are welcome and the project is accepting of pull requests at all times.
+
+### Testing
+
+The full test suite (including linting) is run via:
+
+```shell
+$ npm test
+```
+
+If the `NODE_ENV` environment variable is set to `ci`, the including against-redis tests will be skipped entirely.
+
+When running the tests against redis, the host is assumed to be the local machine on the standard port.
+
+`REDIS_LOCAL_AUTH` will be used as the connection password, if set.
+
+`REDIS_LOCAL_DB` will select the redis DB to test within, if set.
+
+Utilizing [`tape`][9], each individual test file can be executed in isolation:
+
+```shell
+$ node test/default-store.js
+…
+# ok
+```
+
+### Authors
+
+* Ryan Joseph, [Electric Sheep Co.][8]
+
+## Benchmarks
+
+TBD.
+
+## License
+
+[MIT][/LICENSE]
 
 [1]: https://github.com/electric-sheep-co/2d-sparse-bitmaps-node/workflows/CI/badge.svg?branch=main
 [2]: https://github.com/electric-sheep-co/2d-sparse-bitmaps-node/actions?query=workflow%3ACI
@@ -118,3 +158,4 @@ const occupiedInBounds = await occupiedBitmap.inBounds(bBox);
 [5]: https://david-dm.org/electric-sheep-co/2d-sparse-bitmaps-node/dev-status.svg
 [6]: https://david-dm.org/electric-sheep-co/2d-sparse-bitmaps-node?type=dev
 [7]: https://github.com/electric-sheep-co/2d-sparse-bitmaps-node/#backing-store-interface
+[8]: https://electricsheep.co
