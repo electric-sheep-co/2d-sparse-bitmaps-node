@@ -49,7 +49,7 @@ getBuffer(key);
 
 and may optionally implement `pipeline()`, which must return an instance implementing the aforementioned interface *plus* `exec()` for pipeline execution. 
 
-Additionally, the backing store interface methods must accept an additional `function (err, result)` callback argument.
+The backing store interface methods must also accept an additional callback argument of type `function (err, result)`.
 
 ### Full options
 
