@@ -39,7 +39,7 @@ const bitmap = new TwoD.SparseBitmap({ [TwoD.BackingStoreKey]: rConn });
 
 ### Backing store interface
 
-The backing store simply must implement this interface:
+Any backing store must implement this interface:
 
 ```javascript
 getbit(key, bitPosition);
@@ -50,6 +50,8 @@ getBuffer(key);
 and may optionally implement `pipeline()`, which must return an instance implementing the aforementioned interface *plus* `exec()` for pipeline execution. 
 
 The backing store interface methods must also accept an additional callback argument of type `function (err, result)`.
+
+The default `InMemoryStore` provides an example implementation (sans `pipeline()` et. al).
 
 ### Full options
 
