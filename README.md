@@ -58,7 +58,7 @@ The default `InMemoryStore` provides an example implementation (sans `pipeline()
 | Constant Name | Description | Default | Restrictions |
 | --- | --- | --- | --- |
 | `ChunkWidthKey` | The width of each chunk in the sparse bitmap; eack chunk requires up to `(X / 8) * X` bytes of storage (where `X` is the chosen chunk width) | 128 | >= 8, must be a multiple of 8 |
-| `KeyPrefixKey` | The string preprended to each `key` before being passed onto the backing store. | `twodim-sparse-bitmap` | none |
+| `KeyPrefixKey` | The string preprended to each `key` before being passed onto the backing store. | `sparse-bitmap` | none |
 | `BackingStoreKey` | The backing store instance to be used.  | `InMemoryStore` | Must conform to the [aforementioned interface][7]. |
 
 ## Usage
@@ -151,7 +151,7 @@ TBD.
 
 ## License
 
-[MIT][/LICENSE]
+[MIT](LICENSE)
 
 [1]: https://github.com/electric-sheep-co/2d-sparse-bitmaps-node/workflows/CI/badge.svg?branch=main
 [2]: https://github.com/electric-sheep-co/2d-sparse-bitmaps-node/actions?query=workflow%3ACI
@@ -161,3 +161,4 @@ TBD.
 [6]: https://david-dm.org/electric-sheep-co/2d-sparse-bitmaps-node?type=dev
 [7]: https://github.com/electric-sheep-co/2d-sparse-bitmaps-node/#backing-store-interface
 [8]: https://electricsheep.co
+[9]: https://www.npmjs.com/package/tape

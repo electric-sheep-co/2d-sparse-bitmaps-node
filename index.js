@@ -4,7 +4,7 @@ const KeyPrefixKey = 'keyPrefix';
 
 const Defaults = {
   [ChunkWidthKey]: 128,
-  [KeyPrefixKey]: 'twodim-sparse-bitmap',
+  [KeyPrefixKey]: 'sparse-bitmap',
   Limits: {
     [ChunkWidthKey]: {
       min: 8
