@@ -125,13 +125,11 @@ The full test suite (including linting) is run via:
 $ npm test
 ```
 
-If the `NODE_ENV` environment variable is set to `ci`, the including against-redis tests will be skipped entirely.
+If the `NODE_ENV` environment variable is set to `ci`, all tests against redis will be skipped entirely.
 
-When running the tests against redis, the host is assumed to be the local machine on the standard port.
-
-`REDIS_LOCAL_AUTH` will be used as the connection password, if set.
-
-`REDIS_LOCAL_DB` will select the redis DB to test within, if set.
+When running the tests against redis, the host is assumed to be the local machine on the standard port. Additionally:
+* `REDIS_LOCAL_AUTH` will be used as the connection password, if set.
+* `REDIS_LOCAL_DB` will select the redis DB to test within, if set.
 
 Utilizing [`tape`][9], each individual test file can be executed in isolation:
 
