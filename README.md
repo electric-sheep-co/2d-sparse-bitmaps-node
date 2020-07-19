@@ -8,7 +8,7 @@ A two-dimensional sparse bitmap implementation for [Node.js](https://nodejs.org/
 
 Allows for flexible backing store choice, with the primary supported being [Redis](http://redis.io/) via [`ioredis`](https://github.com/luin/ioredis).
 
-The underlying "chunked" implementation is quite efficient; the following example needs only 64 bytes to represent two coordinates which are ~1,414,213 units distant each other on the diagonal:
+The underlying chunked implementation is quite efficient; the following example needs only 64 bytes to represent two coordinates which are ~1,414,213 units distant each other on the diagonal:
 
 ```javascript
 const TwoD = require('2d-sparse-bitmaps');
@@ -51,7 +51,7 @@ and may optionally implement `pipeline()`, which must return an instance impleme
 
 The backing store interface methods must also accept an additional callback argument of type `function (err, result)`.
 
-The default `InMemoryStore` provides an example implementation (sans `pipeline()` et. al).
+The default [`InMemoryStore`](stores/in-memory.js) provides an example implementation (sans `pipeline()` et. al).
 
 ### Full options
 
@@ -59,7 +59,7 @@ The default `InMemoryStore` provides an example implementation (sans `pipeline()
 | --- | --- | --- | --- |
 | `ChunkWidthKey` | The width of each chunk in the sparse bitmap; eack chunk requires up to `(X / 8) * X` bytes of storage (where `X` is the chosen chunk width) | 128 | >= 8, must be a multiple of 8 |
 | `KeyPrefixKey` | The string preprended to each `key` before being passed onto the backing store. | `sparse-bitmap` | none |
-| `BackingStoreKey` | The backing store instance to be used.  | `InMemoryStore` | Must conform to the [aforementioned interface][7]. |
+| `BackingStoreKey` | The backing store instance to be used.  | [`InMemoryStore`](stores/in-memory.js) | Must conform to the [aforementioned interface][7]. |
 
 ## Usage
 
