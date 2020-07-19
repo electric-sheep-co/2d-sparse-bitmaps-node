@@ -4,7 +4,7 @@ const KeyPrefixKey = 'keyPrefix';
 
 const Defaults = {
   [ChunkWidthKey]: 128,
-  [KeyPrefixKey]: 'sparse-bitmap',
+  [KeyPrefixKey]: 'twodim-sparse-bitmap',
   Limits: {
     [ChunkWidthKey]: {
       min: 8
@@ -251,7 +251,7 @@ class SparseBitmap {
     return this.impl.allSetInBounds(key, bounds.from.x, bounds.from.y, bounds.to.x, bounds.to.y, strict);
   }
 
-  async boundToKey(key) {
+  boundToKey(key) {
     return {
       get: this.get.bind(this, key),
       set: this.set.bind(this, key),
