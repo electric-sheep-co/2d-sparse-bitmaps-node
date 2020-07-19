@@ -1,7 +1,7 @@
 # 2d-sparse-bitmaps
 
 [![CI Status][1]][2]
-[![Dependencies][3][4]
+[![Dependencies][3]][4]
 
 A two-dimensional sparse bitmap implementation for Node.js.
 
