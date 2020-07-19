@@ -5,7 +5,7 @@
 
 A two-dimensional sparse bitmap implementation for Node.js.
 
-The following example uses only 64 bytes even though the two coordinates are ~1,414,213 units distant on the diagonal:
+The following example uses only 64 bytes though the two coordinates are ~1,414,213 units distant each other on the diagonal:
 
 ```javascript
 const TwoD = require('2d-sparse-bitmaps');
@@ -64,6 +64,12 @@ const xySet = await bitmap.get(key, x, y);
 await bitmap.set(key, x, y);
 ```
 
+### Clear a bit in `key` at `(x, y)`:
+
+```javascript
+await bitmap.unset(key, x, y);
+```
+
 ### Get all set bits:
 
 Finds all bits set in `key` within the bounding box defined by `bBox`, where `from` is the top-left
@@ -71,8 +77,8 @@ coordinate and `to` is the bottom-right coordinate:
 
 ```javascript
 const bBox = {
-    from: { x: ..., y: ... },
-    to: { x: ..., y: ... }
+    from: { x: …, y: … },
+    to: { x: …, y: … }
 };
 
 const allInBounds = await bitmap.inBounds(key, bBox);
@@ -80,6 +86,19 @@ const allInBounds = await bitmap.inBounds(key, bBox);
 
 `allInBounds` will be a list of two-element lists (tuples), where the `x` coordinate is the first value (`[0]`) and `y` is the second (`[1]`).
 
+### Get an instance bound to `key`:
+
+The returned instance has the same methods as above but all _no longer take_ the `key` argument:
+
+```javascript
+const occupiedBitmap = bitmap.boundToKey('occupied');
+
+await occupiedBitmap.set(x, y);
+// …
+
+const bBox = { … };
+const occupiedInBounds = await occupiedBitmap.inBounds(bBox);
+```
 
 [1]: https://github.com/electric-sheep-co/2d-sparse-bitmaps-node/workflows/CI/badge.svg?branch=main
 [2]: https://github.com/electric-sheep-co/2d-sparse-bitmaps-node/actions?query=workflow%3ACI

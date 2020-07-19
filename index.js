@@ -250,6 +250,15 @@ class SparseBitmap {
     this.coordBoundsCheck(bounds.to.x, bounds.to.y);
     return this.impl.allSetInBounds(key, bounds.from.x, bounds.from.y, bounds.to.x, bounds.to.y, strict);
   }
+
+  async boundToKey(key) {
+    return {
+      get: this.get.bind(this, key),
+      set: this.set.bind(this, key),
+      unset: this.unset.bind(this, key),
+      inBounds: this.inBounds.bind(this, key)
+    }
+  }
 };
 
 module.exports = {
