@@ -5,6 +5,16 @@
 
 A two-dimensional sparse bitmap implementation for Node.js.
 
+The following example uses only 64 bytes even though the two coordinates are ~1,414,213 units distant on the diagonal:
+
+```javascript
+const TwoD = require('2d-sparse-bitmaps');
+const bitmap = new TwoD.SparseBitmap({ [TwoD.ChunkWidthKey]: 16 });
+
+await bitmap.set('so-far-away', 0, 0);
+await bitmap.set('so-far-away', 1e6, 1e6);
+```
+
 ## Instantiation
 
 With the default in-memory store:
@@ -24,6 +34,8 @@ const rConn = new Redis();
 const bitmap = new TwoD.SparseBitmap({ [TwoD.BackingStoreKey]: rConn });
 ```
 
+### Backing store interface
+
 The backing store simply must implement this interface:
 
 ```javascript
@@ -32,27 +44,29 @@ setbit(key, bitPosition, value);
 getBuffer(key);
 ```
 
-and may optionally implement `pipeline()`, which must return an instance implementing the aforementioned interface *plus* `exec()` for pipeline execution. Additionally, the interface methods must accept an additional `function (err, result)` callback argument.
+and may optionally implement `pipeline()`, which must return an instance implementing the aforementioned interface *plus* `exec()` for pipeline execution. 
+
+Additionally, the backing store interface methods must accept an additional `function (err, result)` callback argument.
 
 ## Usage
 
 Refer to the [API documentation][5] for full details.
 
-### Get a bit in 'key' at (x, y)
+### Get a bit in `key` at `(x, y)`:
 
 ```javascript
 const xySet = await bitmap.get(key, x, y);
 ```
 
-### Set a bit in 'key' at (x, y)
+### Set a bit in `key` at `(x, y)`:
 
 ```javascript
 await bitmap.set(key, x, y);
 ```
 
-### Get all set bits
+### Get all set bits:
 
-Finds all bits set in `key` within the bounding box defined by the bounding box `bBox`, where `from` is the top-left
+Finds all bits set in `key` within the bounding box defined by `bBox`, where `from` is the top-left
 coordinate and `to` is the bottom-right coordinate:
 
 ```javascript
