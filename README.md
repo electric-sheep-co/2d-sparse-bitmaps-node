@@ -2,10 +2,11 @@
 
 [![CI Status][1]][2]
 [![Dependencies][3]][4]
+[![Dev Dependencies][5]][6]
 
-A two-dimensional sparse bitmap implementation for Node.js.
+A two-dimensional sparse bitmap implementation for [Node.js](https://nodejs.org/) allowing flexible backing store choise, the primary supported being [Redis](http://redis.io/) via [`ioredis`](https://github.com/luin/ioredis).
 
-The following example uses only 64 bytes though the two coordinates are ~1,414,213 units distant each other on the diagonal:
+The following example needs only 64 bytes to represent two coordinates which are ~1,414,213 units distant each other on the diagonal:
 
 ```javascript
 const TwoD = require('2d-sparse-bitmaps');
@@ -104,4 +105,5 @@ const occupiedInBounds = await occupiedBitmap.inBounds(bBox);
 [2]: https://github.com/electric-sheep-co/2d-sparse-bitmaps-node/actions?query=workflow%3ACI
 [3]: https://david-dm.org/electric-sheep-co/2d-sparse-bitmaps-node.svg
 [4]: https://david-dm.org/electric-sheep-co/2d-sparse-bitmaps-node
-[5]: xxx
+[5]: https://david-dm.org/electric-sheep-co/2d-sparse-bitmaps-node/dev-status.svg
+[6]: https://david-dm.org/electric-sheep-co/2d-sparse-bitmaps-node?type=dev
