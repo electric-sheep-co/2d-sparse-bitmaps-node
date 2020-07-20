@@ -1,6 +1,6 @@
 {
   "name": "2d-sparse-bitmaps",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Two-dimensional sparse bitmaps",
   "homepage": "https://github.com/electric-sheep-co/2d-sparse-bitmaps-node",
   "repository": {
@@ -20,5 +20,14 @@
     "ioredis": "^4.17.3",
     "tape": "^5.0.1",
     "tape-promise": "^4.0.0"
-  }
+  },
+  "keywords": [
+    "sparse-bitmap",
+    "sparse-bitset",
+    "sparse-data-structure",
+    "data-structure",
+    "game-development",
+    "cache",
+    "redis"
+  ]
 }
