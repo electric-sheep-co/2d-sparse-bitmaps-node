@@ -20,6 +20,24 @@ const LimitChecks = {
   [ChunkWidthKey]: (x) => x >= Defaults.Limits[ChunkWidthKey].min && (x % 8) === 0
 };
 
+const BoundsConv = {
+  fromArray: (a) => {
+    if (!Array.isArray(a) || a.length !== 2) {
+      throw new Error('BoundsConv.fromArray arg');
+    }
+
+    if (!a.every(x => Array.isArray(x) && x.length === 2)) {
+      throw new Error('BoundsConv.fromArray int');
+    }
+
+    return {
+      from: { x: a[0][0], y: a[0][1] },
+      to: { x: a[1][0], y: a[1][1] }
+    };
+  },
+  toString: (b) => `[${b.to.x-b.from.x}x${b.to.y-b.from.y}: (${b.from.x},${b.from.y}) -> (${b.to.x},${b.to.y})]`
+}
+
 class SparseBitmap {
   constructor(options = {}) {
     if (!(ChunkWidthKey in options)) {
@@ -144,5 +162,8 @@ module.exports = {
   BackingStoreKey,
   ChunkWidthKey,
   KeyPrefixKey,
-  Defaults
+  Defaults,
+  Util: {
+    Bounds: BoundsConv
+  }
 };

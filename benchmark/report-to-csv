@@ -1,0 +1,28 @@
+#!/usr/bin/env node
+// ls -1 *.json | xargs -I{} report-to-csv {}
+
+const fs = require('fs')
+const path = require('path')
+
+if (process.argv.length < 2) {
+  throw new Error('args')
+}
+
+const extractKeys = [
+  { n: 'name', xf: (s) => `"${s}"` },
+  { n: 'timeNsMean' },
+  { n: 'timeNsStdDev' },
+  { n: 'timeNsStdDevRatio' },
+  { n: 'timeMeanHuman', xf: (s) => s.replace('s', '') },
+  { n: 'timeStdDevHuman', xf: (s) => s.replace('s', '') },
+];
+
+const fName = process.argv.pop()
+const outName = `${path.parse(fName).name}.csv`
+
+fs.writeFileSync(outName, (JSON.parse(fs.readFileSync(fName)))
+  .results.reduce((a, x) => a += extractKeys.filter(f => f.n in x)
+    .map(f => 'xf' in f ? f.xf(x[f.n]) : x[f.n]).join(',') + '\n',
+      extractKeys.map(x => x.n).join(',') + '\n'))
+
+console.log(`Wrote ${outName}`)

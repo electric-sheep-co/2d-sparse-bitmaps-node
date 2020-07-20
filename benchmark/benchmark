@@ -3,14 +3,18 @@
 const os = require('os');
 const fs = require('fs').promises;
 const { argv } = require('yargs');
-const TwoD = require('../');
 const Redis = require('ioredis');
+
+let TwoD;
 
 function hostinfo() {
   const r = {
-    name: os.hostname(),
     arch: os.arch(),
-    cpus: os.cpus(),
+    cpus: os.cpus().reduce((a, x) => {
+      const k = `${x.model}/${x.speed}`;
+      a[k] = k in a ? a[k] + 1 : 1;
+      return a;
+    }, {}),
     mem: {
       free: os.freemem(),
       total: os.totalmem()
@@ -28,28 +32,47 @@ function hostinfo() {
   return r;
 }
 
+const redisInfoFilterAllowed = ['redis_version', 'redis_build_id', 'redis_mode', 'os', 'arch_bits', 
+  'used_memory', 'used_memory_rss', 'used_memory_peak', 'total_system_memory', 'mem_fragmentation_ratio'];
+const redisInfoFilter = (element) => redisInfoFilterAllowed.indexOf(element[0]) !== -1;
+
 const T = {
+  p: {
+    tf: 4,
+    pad: 5
+  },
   run: async (name, exec) => {
-    console.log(`# ${name}`);
+    console.log(`# ${T.c(true)}  ${name}`);
     const start = process.hrtime.bigint();
     const result = await exec();
     const ret = { name, result, timeNs: Number(process.hrtime.bigint() - start) };
-    console.log(`## ${ret.timeNs}`);
+    console.log(`##${''.padStart(T.p.pad, ' ')}  ${(Number(ret.timeNs) / 1e9).toFixed(T.p.tf)}s` +
+     (result && typeof result !== 'function' ? `, returned "${JSON.stringify(result, null, 2)}"` : ''));
     return ret;
-  }
+  },
+  seq: {
+    main: mainSequence
+  },
+  c: (i) => `${String(++T._c).padStart(T.p.pad, '0')}`,
+  _c: 0,
 };
 
-async function mainSequence(redisConn, multiplier = 1) {
-  const bitmap = new TwoD.SparseBitmap({ [TwoD.BackingStoreKey]: redisConn });
+async function mainSequence(key, redisConn, chunkWidth, multiplier = 1) {
+  const bitmap = new TwoD.SparseBitmap({ 
+    [TwoD.BackingStoreKey]: redisConn,
+    [TwoD.ChunkWidthKey]: chunkWidth
+  });
+
+  if (!bitmap.isPipelineCapable) {
+    throw new Error('mainSequence must be run with a pipeline-capable backing store');
+  }
+
   const lim = bitmap[TwoD.ChunkWidthKey] * multiplier;
-  const key = `benchmark:${Date.now()}`;
   const results = [];
+  const findAllBounds = TwoD.Util.Bounds.fromArray([[0,0], [lim,lim]]);
 
   const findAllClosure = async (k) => {
-    const inBounds = await bitmap.inBounds(k, {
-      from: { x: 0, y: 0 },
-      to: { x: lim, y: lim }
-    });
+    const inBounds = await bitmap.inBounds(k, findAllBounds);
 
     if (inBounds.length !== lim*lim) {
       throw new Error('len');
@@ -58,55 +81,188 @@ async function mainSequence(redisConn, multiplier = 1) {
     return inBounds.length;
   };
 
-  const setAll = async (k, m) => {
-    results.push((await T.run(`set all ${lim}x${lim}${(m ? ` (${m})` : '')}`, async () => {
+  const xAll = async (v, k, m, p = false) => {
+    const actStr = v === 1 ? '' : 'un';
+
+    results.push((await T.run(`${actStr}set all ${lim}x${lim}/${lim*lim} bits${(m ? ` (${m})` : '')}`, async () => {
       for (let x = 0; x < lim; x++) {
-        for (let y = 0; y < lim; y++) {
-          await bitmap.set(k, x, y);
-        }
+        const exec = (v === 1 ? bitmap.set : bitmap.unset).bind(bitmap);
+
+        const rowAll = async () => {
+          for (let y = 0; y < lim; y++) {
+            await exec(k, x, y);
+          }
+        };
+
+        await (p ? bitmap.pipelinedMutate(rowAll) : rowAll());
       }
     })));
   };
 
-  const unsetAll = async (k, m) => {
-    results.push((await T.run(`unset all ${lim}x${lim}${(m ? ` (${m})` : '')}`, async () => {
-      for (let x = 0; x < lim; x++) {
-        for (let y = 0; y < lim; y++) {
-          await bitmap.unset(k, x, y);
+  const setPercentageRand = async (l, a, k, m, p = false) => {
+    const spRand = () => Math.floor(Math.random() * l);
+    let num = Math.round((l*l) * (a > 1.0 ? (1.0 / a) : (a / 100.0)));
+    const tracker = {};
+
+    results.push((await T.run(`random set ${a}% in ${l}x${l}/${num} bits${(m ? ` (${m})` : '')}`, async () => {
+      while (num > 0) {
+        const [rX, rY] = [spRand(), spRand()];
+        const rKey = `${rX},${rY}`;
+
+        // don't allow the same point to be included more than once
+        if (!(rKey in tracker)) {
+          tracker[rKey] = [rX, rY];
+          --num;
         }
       }
+
+      const runner = async () => {
+        for (let coord of Object.values(tracker)) {
+          await bitmap.set(k, coord[0], coord[1]);
+        }
+      };
+
+      await (p ? bitmap.pipelinedMutate(runner) : runner());
     })));
+
+    return tracker;
   };
 
-  await bitmap.pipelinedMutate(async () => setAll(key, 'pipelined'));
-  results.push((await T.run(`find all in ${lim}x${lim}`, findAllClosure.bind(null, key))));
+  const setAll = xAll.bind(null, 1);
+  const unsetAll = xAll.bind(null, 0);
+
+  await setAll(key, 'pipeline', true);
+  results.push((await T.run(`find all in ${TwoD.Util.Bounds.toString(findAllBounds)} (pipeline)`, findAllClosure.bind(null, key))));
+  await unsetAll(key, 'pipeline', true);
 
   const npKey = `${key}:np`;
   await setAll(npKey, 'no-pipeline');
   bitmap.isPipelineCapable = false;
-  results.push((await T.run(`find all in ${lim}x${lim}, sans pipeline`, findAllClosure.bind(null, npKey))));
+  results.push((await T.run(`find all in ${TwoD.Util.Bounds.toString(findAllBounds)} (no-pipeline)`, findAllClosure.bind(null, npKey))));
   bitmap.isPipelineCapable = true;
+  await unsetAll(npKey, 'no-pipeline');
 
-  await unsetAll(npKey, 'normal');
+  const prcntRandRound = async (nPrcnt, nLim) => {
+    nLim *= lim;
+    const nPRBounds = {
+      from: { x: 0, y: 0 },
+      to: { x: nLim, y: nLim }
+    };
 
-  await bitmap.pipelinedMutate(async () => {
-    await unsetAll(key, 'pipelined'); // 'key' all stil set from above
-  });
+    let nPRKey = `${key}:${nLim}:${nPrcnt}:rand-P`;
+    let nPRTracked = await setPercentageRand(nLim, nPrcnt, nPRKey, 'pipeline', true);
+    results.push((await T.run(`find ${nPrcnt}% in ${TwoD.Util.Bounds.toString(nPRBounds)} (pipeline)`, async () => {
+      const inBounds = await bitmap.inBounds(nPRKey, nPRBounds);
 
-  results.push((await T.run(`delete all '*${key}*'`, async () => {
-    const keys = await redisConn.keys(`*${key}*`);
-    await redisConn.del(...keys);
-  })));
+      if (Object.keys(nPRTracked).length !== inBounds.length) {
+        throw new Error(`lengths! ${Object.keys(nPRTracked).length} vs ${inBounds.length}`);
+      }
+    })));
+
+    nPRKey = `${key}:${nLim}:${nPrcnt}:rand-NP`;
+    nPRTracked = await setPercentageRand(nLim, nPrcnt, nPRKey, 'no-pipeline');
+    bitmap.isPipelineCapable = false;
+    results.push((await T.run(`find ${nPrcnt}% in ${TwoD.Util.Bounds.toString(nPRBounds)} (no-pipeline)`, async () => {
+      const inBounds = await bitmap.inBounds(nPRKey, nPRBounds);
+
+      if (Object.keys(nPRTracked).length !== inBounds.length) {
+        throw new Error(`lengths! ${Object.keys(nPRTracked).length} vs ${inBounds.length}`);
+      }
+    })));
+    bitmap.isPipelineCapable = true;
+  };
+
+  await prcntRandRound(0.01, 100);
+  await prcntRandRound(1, 10);
+  await prcntRandRound(0.25, 20);
+
+  await prcntRandRound(0.001, 200);
+  await prcntRandRound(0.1, 20);
+  await prcntRandRound(0.025, 40);
+
+  const halfWidth = bitmap[TwoD.ChunkWidthKey] / 2;
+  const onePFiveWidth = halfWidth + bitmap[TwoD.ChunkWidthKey];
+
+  const strideSet = async (stride, nLim, boundsTo, p) => {
+    nLim *= multiplier;
+
+    const ssKey = `${key}:${nLim}:${stride}:ss:${p ? 'P' : 'NP'}`;
+    const nBits = nLim * nLim;
+    const findBounds = { from: { x: -1, y: -1 }, to: boundsTo };
+
+    results.push((await T.run(`stride-set:${stride} over ${nLim}x${nLim}/${nBits}/~${Math.ceil(nBits / stride)} bits (${p ? '' : 'no-'}pipeline)`, async () => {
+      const yTrack = { current: 0, buffer: [], total: 0 };
+
+      for (let count = 0; count <= nBits; count += stride) {
+        const x = count % nLim;
+        const y = Math.floor(count / nLim);
+        yTrack.buffer.push([x, y]);
+
+        if (y !== yTrack.current) {
+          if (yTrack.current === 0) {
+            findBounds.to.x += (findBounds.from.x = x + halfWidth);
+            findBounds.to.y += (findBounds.from.y = y + halfWidth);
+          }
+
+          const rowChunk = async () => {
+            for (let bufPoint of yTrack.buffer) {
+              await bitmap.set(ssKey, bufPoint[0], bufPoint[1]);
+            }
+          };
+
+          await (p ? bitmap.pipelinedMutate(rowChunk) : rowChunk());
+
+          yTrack.current = y;
+          yTrack.total += yTrack.buffer.length;
+          yTrack.buffer = [];
+        }
+      }
+
+      return yTrack.total;
+    })));
+
+    results.push((await T.run(`stride-set:${stride} - find in bounds: ${TwoD.Util.Bounds.toString(findBounds)} (${p ? '' : 'no-'}pipeline)`, async () => {
+      if (!p) {
+        bitmap.isPipelineCapable = false;
+      }
+
+      const inB = await bitmap.inBounds(ssKey, findBounds);
+
+      if (!p) {
+        bitmap.isPipelineCapable = true;
+      }
+
+      return inB.length;
+    })));
+  };
+
+  await strideSet(11, onePFiveWidth, { x: onePFiveWidth, y: onePFiveWidth }, true);
+  await strideSet(11, onePFiveWidth, { x: onePFiveWidth, y: onePFiveWidth }, false);
+
+  await strideSet(919, 900, { x: 960, y: 640 }, true);
+  await strideSet(919, 900, { x: 960, y: 640 }, false);
+
+  await strideSet(4243, 1440, { x: 2560, y: 1440 }, true);
+  await strideSet(4243, 1440, { x: 2560, y: 1440 }, false);
+
+  await strideSet(101111, 42221, { x: 4096, y: 2048 }, true);
+  await strideSet(101111, 42221, { x: 4096, y: 2048 }, false);
 
   return results;
 }
 
 async function main() {
+  const locl = argv.l || argv.local;
+  TwoD = (locl ? require('../') : require('2d-sparse-bitmaps'));
+
   const mult = argv.m || argv.mult || 1;
   const host = argv.h || argv.host || 'localhost';
   const port = argv.p || argv.port || 6379;
   const auth = argv.a || argv.auth;
   const db   = argv.n || argv.db;
+  const wdth = argv.c || argv.chunkWidth || TwoD.Defaults[TwoD.ChunkWidthKey];
+  const iter = argv.i || argv.iter || 3;
+  const wait = argv.w || argv.wait || 31; // seconds
 
   const redisOpts = {};
 
@@ -122,27 +278,115 @@ async function main() {
 
   const report = {
     host: hostinfo(),
-    node: process.versions,
-    redis: { host, port }
+    node: Object.entries(process.versions).filter(e => ['node', 'v8'].indexOf(e[0]) !== -1).reduce((a, x) => ({ [x[0]]: x[1], ...a}), {}),
+    redis: { host, port },
+    run: {
+      wait,
+      multiplier: mult,
+      localLibrary: locl,
+      chunkWidth: wdth,
+      iterations: iter,
+      complete: false,
+    },
+    results: []
   };
 
   redisConn.on('ready', async () => {
     const overallStart = process.hrtime.bigint();
-    report.redis.info = redisConn.serverInfo;
+    report.redis.info = Object.entries(redisConn.serverInfo).filter(redisInfoFilter).reduce((a, x) => ({ [x[0]]: x[1], ...a}), {});
 
-    console.log(`Benchmark starting with ${report.host.os.name}-${report.host.arch} ${report.host.os.release}; ` +
-      `redis ${report.redis.info.redis_version} (${report.redis.host}); node ${report.node.node}\n`);
-    report.results = await mainSequence(redisConn, mult);
-    
-    report.run = {
-      timeSec: Number(process.hrtime.bigint() - overallStart) / 1e9
+    console.log(`Benchmarking with c:${wdth}/m:${mult} on "${report.host.os.name}-${report.host.arch} ${report.host.os.release}; ` +
+      `redis ${report.redis.info.redis_version} (${report.redis.host}); node ${report.node.node}"`);
+
+    const key = `benchmark:${Date.now()}`;
+
+    const delAllKeys = async () => {
+      report.results.push((await T.run(`delete all '*${key}*'`, async () => {
+        const keys = await redisConn.keys(`*${key}*`);
+        const chunkSize = 1e5;
+        let remain = keys.length;
+        let off = 0;
+
+        while (remain > 0) {
+          const cSize = Math.min(remain, chunkSize);
+          await redisConn.del(...keys.slice(off, off + cSize));
+          off += cSize;
+          remain -= cSize;
+        }
+
+        return keys.length;
+      })));
+    }
+
+    const cleanup = async (sig) => {
+      if (sig) {
+        console.log('\nInterrupted! Cleaning up immediately...');
+        await delAllKeys();
+        T.run = () => {};
+      }
+
+      const reportPath = `report.${(new Date().toISOString()).replace(/[-:.]/g, '')}.json`;
+      await fs.writeFile(reportPath, JSON.stringify(report, null, 2));
+
+      report.run.timeSec = Number(process.hrtime.bigint() - overallStart) / 1e9;
+      console.log(`\nDone in ${report.run.timeSec.toFixed(2)}s, report written to: ${reportPath}`);
+
+      if (sig) {
+        process.exit();
+      }
     };
 
-    redisConn.disconnect();
-    const reportPath = `report.${(new Date().toISOString()).replace(/[-:.]/g, '')}.json`;
-    await fs.writeFile(reportPath, JSON.stringify(report, null, 2));
+    process.on('SIGINT', cleanup);
+    process.on('SIGTERM', cleanup);
+    process.on('SIGHUP', cleanup);
 
-    console.log(`\nDone in ${report.run.timeSec.toFixed(2)}s, report written to: ${reportPath}`);
+    const iteration = async (i, completeCb) => {
+      console.log(`\n*** Iteration ${(iter-i)+1} ***`);
+      report.results = report.results.concat((await T.seq.main(key, redisConn, wdth, mult)));
+      await delAllKeys();
+
+      if (--i > 0) {
+        setTimeout(() => iteration(i, completeCb), wait * 1000);
+      } else {
+        await completeCb();
+      }
+    };
+
+    await iteration(iter, async () => {
+      if (iter > 1) {
+        const consolidate = report.results.reduce((accum, rep) => {
+          if (!(rep.name in accum)) {
+            accum[rep.name] = [];
+          }
+  
+          accum[rep.name].push(rep);
+          return accum;
+        }, {});
+  
+        report.results = Object.keys(consolidate).map((name) => {
+          const repList = consolidate[name];
+          const timeNsMean = repList.reduce((a, x) => a + x.timeNs, 0) / repList.length;
+          const timeNsStdDev = Math.sqrt(repList.map((x) => (x.timeNs - timeNsMean) ** 2).reduce((a, x) => a + x) / repList.length);
+          const timeNsStdDevRatio = timeNsStdDev / timeNsMean;
+
+          return {
+            name,
+            timeNsMean,
+            timeMeanHuman: `${(timeNsMean / 1e9).toFixed(T.p.tf)}s`,
+            timeNsStdDev,
+            timeStdDevHuman: `${(timeNsStdDev / 1e9).toFixed(T.p.tf+1)}s`,
+            timeNsStdDevRatio,
+            count: repList.length,
+            raw: repList
+          };
+        });
+      }
+  
+      report.run.complete = true;
+      await cleanup();
+  
+      redisConn.disconnect();
+    });
   });
 }
 

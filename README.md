@@ -4,11 +4,11 @@
 [![Dependencies][3]][4]
 [![Dev Dependencies][5]][6]
 
-A two-dimensional sparse bitmap implementation for [Node.js](https://nodejs.org/) with no required dependencies.
+A two-dimensional sparse bitmap implementation for [Node.js](https://nodejs.org/) 10 or later, with no required dependencies.
 
-Allows for flexible backing store choice, the primary supported being [Redis](http://redis.io/) via [`ioredis`](https://github.com/luin/ioredis).
+Allows for flexible backing store choice, the primary supported being [Redis](http://redis.io/) (via [`ioredis`](https://github.com/luin/ioredis)).
 
-The underlying chunked implementation is quite efficient; the following example needs only 64 bytes to represent two coordinates which are ~1,414,213 units distant each other on the diagonal:
+The underlying chunked implementation is efficient; the following example needs only 64 bytes to represent two coordinates which are ~1,414,213 units distant each other on the diagonal:
 
 ```javascript
 const TwoD = require('2d-sparse-bitmaps');
@@ -18,7 +18,7 @@ await bitmap.set('so-far-away', 0, 0);
 await bitmap.set('so-far-away', 1e6, 1e6);
 ```
 
-Additionally, the sparse nature of the data structure allows for efficient queries within targetted bounds via the `inBounds()` method.
+Additionally, the sparse nature of the data structure allows for performant queries within specified bounds via [`inBounds()`](#get-all-set-bits-in-given-bounds).
 
 ## Installation
 
@@ -75,6 +75,8 @@ All coordinates must be _unsigned_, a limitation that may be removed in future r
 
 ### Get:
 
+Cannot be called within `pipelinedMutate()` context. No option to pipeline these calls is available; high-volume searches should be performed with [`inBounds()`](get-all-set-bits-in-given-bounds) instead.
+
 The bit at `(x, y)` in `key`:
 
 ```javascript
@@ -89,7 +91,7 @@ The bit at `(x, y)` in `key`:
 await bitmap.set(key, x, y);
 ```
 
-### Clear:
+### Unset:
 
 The bit at `(x, y)` in `key`:
 
@@ -98,6 +100,8 @@ await bitmap.unset(key, x, y);
 ```
 
 ### Get all set-bits in given bounds:
+
+Cannot be called within `pipelinedMutate()` context. This method performs it's own internal pipelining to be as performant as possible.
 
 Within the bounding box definition - here named `bBox` - `from` is the top-left coordinate and `to` is the bottom-right coordinate:
 
@@ -140,10 +144,8 @@ const scopeReturn = await bitmap.pipelinedMutate(async () => {
   }
 
   for (…) {
-    await keyBound.unset(x, y)
+    await keyBound.unset(x, y);
   }
-
-  // all .set() and .unset() calls executed against the store (effectively) *here*
 });
 ```
 
@@ -187,7 +189,27 @@ $ node test/default-store.js
 
 ## Benchmarks
 
-TBD.
+The following rudimentary benchmarks were performed on an AWS EC2 type *m5a.large* (4 vCPUs, 16GB RAM) running the Ubuntu 20LTS AMI (ID `ami-03ceeb0f46ee38ce7`). Both the backing store redis instance and [`benchmark`](./benchmark/benchmark) script were run on this VM. All redis [snapshotting](https://redis.io/topics/persistence#snapshotting)) was disabled. The EC2 instance was created specifically for this use and had other workloads during the benchmarking process.
+
+Version particulars:
+* Linux kernel `X`
+* Node `X` (v8 `X`)
+* Redis `X` (standalone)
+
+The primary takeaway is the significant increase in performance afforded by pipelined operations.
+
+Each data point here is synthesized from 101 iteraions of the full sequence defined in [`benchmark::T.seq.main()`](./benchmark/benchmark#L54).
+
+According to this limited dataset, the mean search rate for varying overall fill rates is as follows:
+* 1% fill: X megabits/sec
+* xxx
+
+### Raw data
+
+* report for `benchmark -i 101 -w 127`
+* report for `benchmark -i 101 -w 127 -m 3`
+* report for `benchmark -i 101 -w 127 -m 5`
+* analysis spreadsheet
 
 ## License
 
