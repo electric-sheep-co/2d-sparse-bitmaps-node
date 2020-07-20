@@ -1,0 +1,144 @@
+#!/usr/bin/env node
+
+const os = require('os');
+const fs = require('fs').promises;
+const { argv } = require('yargs');
+const TwoD = require('2d-sparse-bitmaps');
+const Redis = require('ioredis');
+
+function hostinfo() {
+  const r = {
+    name: os.hostname(),
+    arch: os.arch(),
+    cpus: os.cpus(),
+    mem: {
+      free: os.freemem(),
+      total: os.totalmem()
+    },
+    os: {
+      name: os.platform(),
+      release: os.release()
+    }
+  }
+
+  if ('version' in os) {
+    r.os.version = os.version();
+  }
+
+  return r;
+}
+
+const T = {
+  run: async (name, exec) => {
+    console.log(`# ${name}`);
+    const start = process.hrtime.bigint();
+    const result = await exec();
+    const ret = { name, result, timeNs: Number(process.hrtime.bigint() - start) };
+    console.log(`## ${ret.timeNs}`);
+    return ret;
+  }
+};
+
+async function mainSequence(redisConn) {
+  const bitmap = new TwoD.SparseBitmap({ [TwoD.BackingStoreKey]: redisConn });
+  const lim = bitmap[TwoD.ChunkWidthKey];
+  const key = `benchmark:${Date.now()}`;
+  const results = [];
+
+  const findAllClosure = async (k) => {
+    const inBounds = await bitmap.inBounds(k, {
+      from: { x: 0, y: 0 },
+      to: { x: lim, y: lim }
+    });
+
+    if (inBounds.length !== lim*lim) {
+      throw new Error('len');
+    }
+
+    return inBounds.length;
+  };
+
+  const setAll = async (k) => {
+    results.push((await T.run(`set all ${lim}x${lim}`, async () => {
+      for (let x = 0; x < lim; x++) {
+        for (let y = 0; y < lim; y++) {
+          await bitmap.set(k, x, y);
+        }
+      }
+    })));
+  };
+
+  const unsetAll = async (k) => {
+    results.push((await T.run(`unset all ${lim}x${lim}`, async () => {
+      for (let x = 0; x < lim; x++) {
+        for (let y = 0; y < lim; y++) {
+          await bitmap.unset(k, x, y);
+        }
+      }
+    })));
+  };
+
+  await setAll(key);
+  results.push((await T.run(`find all in ${lim}x${lim}`, findAllClosure.bind(null, key))));
+  await unsetAll(key);
+
+  const npKey = `${key}:np`;
+  await setAll(npKey);
+  bitmap.isPipelineCapable = false;
+  results.push((await T.run(`find all in ${lim}x${lim}, sans pipeline`, findAllClosure.bind(null, npKey))));
+  bitmap.isPipelineCapable = true;
+  await unsetAll(npKey);
+
+  results.push((await T.run(`delete all '*${key}*'`, async () => {
+    const keys = await redisConn.keys(`*${key}*`);
+    await redisConn.del(...keys);
+  })));
+
+  return results;
+}
+
+async function main() {
+  const host = argv.h || argv.host || 'localhost';
+  const port = argv.p || argv.port || 6379;
+  const auth = argv.a || argv.auth;
+  const db   = argv.n || argv.db;
+
+  const redisOpts = {};
+
+  if (auth) {
+    redisOpts.password = auth;
+  }
+
+  if (db) {
+    redisOpts.db = db;
+  }
+
+  const redisConn = new Redis(host, port, redisOpts);
+
+  const report = {
+    host: hostinfo(),
+    node: process.versions,
+    redis: { host, port }
+  };
+
+  redisConn.on('ready', async () => {
+    const overallStart = process.hrtime.bigint();
+    report.redis.info = redisConn.serverInfo;
+
+    console.log(`Benchmark starting with ${report.host.os.name}-${report.host.arch} ${report.host.os.release}; ` +
+      `redis ${report.redis.info.redis_version} (${report.redis.host}); node ${report.node.node}\n`);
+    report.results = await mainSequence(redisConn);
+    
+    report.run = {
+      timeSec: Number(process.hrtime.bigint() - overallStart) / 1e9
+    };
+
+    redisConn.disconnect();
+    const reportPath = `report.${(new Date().toISOString()).replace(/[\-:\.]/g, '')}.json`;
+    await fs.writeFile(reportPath, JSON.stringify(report, null, 2));
+
+    console.log(`\nDone in ${report.run.timeSec.toFixed(2)}s, report written to: ${reportPath}`);
+  });
+}
+
+main();
