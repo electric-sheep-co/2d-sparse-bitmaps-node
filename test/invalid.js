@@ -29,3 +29,15 @@ test('negative coordinate', async function (t) {
     await bitmap.get('negcoord', -1, -1); 
   });
 });
+
+test('call invalid functions within pipelinedMutate context', async function (t) {
+  t.plan(2);
+
+  const fauxPipelinedStore = new TwoD.InMemoryStore();
+  fauxPipelinedStore.pipeline = () => {};
+
+  const bitmap = new TwoD.SparseBitmap({ [TwoD.BackingStoreKey]: fauxPipelinedStore });
+
+  t.rejects(async function() { await bitmap.get('', -1, -1); }, 'get');
+  t.rejects(async function() { await bitmap.inBounds('', {}); }, 'inBounds');
+});

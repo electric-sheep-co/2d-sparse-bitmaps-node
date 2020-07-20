@@ -95,9 +95,27 @@ async function setNRandomAndCheckInBounds(key, t, n, bitmap, strict = false) {
   t.pass(`${key} list matches expected`);
 }
 
+async function simplePipelinedMutate(bitmap, t) {
+  const keyBound = bitmap.boundToKey('pipelined-mutate--set-diag');
+
+  await bitmap.pipelinedMutate(async () => {
+    for (let i = 0; i < bitmap[TwoD.ChunkWidthKey]; i++) {
+      await keyBound.set(i, i);
+    }
+  });
+
+  const verify = await keyBound.inBounds({
+    from: { x: 0, y: 0 },
+    to: { x: bitmap[TwoD.ChunkWidthKey], y: bitmap[TwoD.ChunkWidthKey] }
+  });
+
+  t.equal(verify.length, bitmap[TwoD.ChunkWidthKey], 'simplePipelinedMutate');
+}
+
 module.exports = {
     singleSetTestUnset,
     setNRandomAndCheckInBounds,
     tKey,
     ourRand,
+    simplePipelinedMutate,
 };

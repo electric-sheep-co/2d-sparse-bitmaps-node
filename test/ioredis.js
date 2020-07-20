@@ -80,6 +80,10 @@ function main() {
       return shared.setNRandomAndCheckInBounds(`421-NP`, t, 421, bitmap, true);
     });
   });
+
+  test('local redis - simplePipelinedMutate', async function (t) {
+    await execWithLocal(async (bitmap) => shared.simplePipelinedMutate(bitmap, t));
+  });
 }
 
 main();

@@ -61,15 +61,15 @@ class SparseBitmap {
         return false;
       }
   
-      if ('pipeline' in bs) {
-        this.isPipelineCapable = true;
-      }
-  
       return true;
     };
 
     if (!backingStoreIsValid()) {
       throw new Error(`invalid object given for '${BackingStoreKey}'`);
+    }
+  
+    if ('pipeline' in this[BackingStoreKey] && typeof this[BackingStoreKey].pipeline === 'function') {
+      this.isPipelineCapable = true;
     }
 
     this.coordBoundsCheck = (x, y) => {
@@ -82,6 +82,10 @@ class SparseBitmap {
   }
 
   async get(key, x, y) {
+    if (this.__pipelinedMutate_savedBackingStore) {
+      throw new Error("cannot call get in pipelinedMutate context");
+    }
+
     this.coordBoundsCheck(x, y);
     return this.impl.getSet(key, x, y);
   }
@@ -97,6 +101,10 @@ class SparseBitmap {
   }
 
   async inBounds(key, bounds, strict = false) {
+    if (this.__pipelinedMutate_savedBackingStore) {
+      throw new Error("cannot call inBounds in pipelinedMutate context");
+    }
+
     this.coordBoundsCheck(bounds.from.x, bounds.from.y);
     this.coordBoundsCheck(bounds.to.x, bounds.to.y);
     return this.impl.allSetInBounds(key, bounds.from.x, bounds.from.y, bounds.to.x, bounds.to.y, strict);
@@ -109,6 +117,24 @@ class SparseBitmap {
       unset: this.unset.bind(this, key),
       inBounds: this.inBounds.bind(this, key)
     }
+  }
+
+  async pipelinedMutate(execFunc) {
+    if (this.isPipelineCapable) {
+      const pipeline = this[BackingStoreKey].pipeline();
+      this.__pipelinedMutate_savedBackingStore = this[BackingStoreKey];
+      this[BackingStoreKey] = pipeline;
+    }
+
+    const ret = await execFunc();
+
+    if (this.isPipelineCapable) {
+      await this[BackingStoreKey].exec();
+      this[BackingStoreKey] = this.__pipelinedMutate_savedBackingStore;
+      this.__pipelinedMutate_savedBackingStore = null;
+    }
+
+    return ret;
   }
 };
 

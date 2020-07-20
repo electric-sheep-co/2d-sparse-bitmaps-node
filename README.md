@@ -4,9 +4,9 @@
 [![Dependencies][3]][4]
 [![Dev Dependencies][5]][6]
 
-A two-dimensional sparse bitmap implementation for [Node.js](https://nodejs.org/).
+A two-dimensional sparse bitmap implementation for [Node.js](https://nodejs.org/) with no required dependencies.
 
-Allows for flexible backing store choice, with the primary supported being [Redis](http://redis.io/) via [`ioredis`](https://github.com/luin/ioredis).
+Allows for flexible backing store choice, the primary supported being [Redis](http://redis.io/) via [`ioredis`](https://github.com/luin/ioredis).
 
 The underlying chunked implementation is quite efficient; the following example needs only 64 bytes to represent two coordinates which are ~1,414,213 units distant each other on the diagonal:
 
@@ -17,6 +17,8 @@ const bitmap = new TwoD.SparseBitmap({ [TwoD.ChunkWidthKey]: 16 });
 await bitmap.set('so-far-away', 0, 0);
 await bitmap.set('so-far-away', 1e6, 1e6);
 ```
+
+Additionally, the sparse nature of the data structure allows for efficient queries within targetted bounds via the `inBounds()` method.
 
 ## Installation
 
@@ -71,32 +73,38 @@ Each chunk requires up to `(X / 8) * X` bytes of storage, where `X` is the chose
 
 All coordinates must be _unsigned_, a limitation that may be removed in future releases.
 
-### Get a bit in `key` at `(x, y)`:
+### Get:
+
+The bit at `(x, y)` in `key`:
 
 ```javascript
 const xySet = await bitmap.get(key, x, y);
 ```
 
-### Set a bit in `key` at `(x, y)`:
+### Set:
+
+The bit at `(x, y)` in `key`:
 
 ```javascript
 await bitmap.set(key, x, y);
 ```
 
-### Clear a bit in `key` at `(x, y)`:
+### Clear:
+
+The bit at `(x, y)` in `key`:
 
 ```javascript
 await bitmap.unset(key, x, y);
 ```
 
-### Get all set bits within given bounds:
+### Get all set-bits in given bounds:
 
 Within the bounding box definition - here named `bBox` - `from` is the top-left coordinate and `to` is the bottom-right coordinate:
 
 ```javascript
 const bBox = {
-    from: { x: …, y: … },
-    to: { x: …, y: … }
+  from: { x: …, y: … },
+  to: { x: …, y: … }
 };
 
 const allInBounds = await bitmap.inBounds(key, bBox);
@@ -106,9 +114,9 @@ const allInBounds = await bitmap.inBounds(key, bBox);
 
 Has a third optional parameter, `strict`, which if set to `true` will cull the list before return to only include points strictly within the given bounding box; otherwise, points within any _chunk intersected by the bounding box_ will be returned.
 
-### Get an instance bound to `key`:
+### Get a key-bound instance:
 
-The returned instance has the same interace as above _except_ that all methods _no longer take_ the `key` argument:
+The returned instance has the same interace as above _except_ that all methods _no longer take_ the `key` argument, as tgey are all now bound to `key` specifically:
 
 ```javascript
 const occupiedBitmap = bitmap.boundToKey('occupied');
@@ -117,6 +125,35 @@ const check = await occupiedBitmap.get(x, y);
 await occupiedBitmap.unset(x, y);
 const occupiedInBounds = await occupiedBitmap.inBounds({ … });
 ```
+
+### Pipelined mutation:
+
+When executing many mutations (`set()` and `unset()`) in high volume and/or frequency, the `pipelineMutate()` method should be used  to provide a context in which any calls to these mutators - *including methods of instances produced by `boundToKey()`* - will be pipelined appropriately and therefore executed as an atomic unit:
+
+```javascript
+const bitmap = new TwoD.SparseBitmap({ [TwoD.BackingStoreKey]: new Redis() });
+const keyBound = bitmap.boundToKey('foobar');
+
+const scopeReturn = await bitmap.pipelinedMutate(async () => {
+  for (…) {
+    await bitmap.set('foobar', x, y);
+  }
+
+  for (…) {
+    await keyBound.unset(x, y)
+  }
+
+  // all .set() and .unset() calls executed against the store (effectively) *here*
+});
+```
+
+Upon return of the scoped function, the pipeline will be executed (with the results being discarded) and the result of the scoped function returned by `pipelinedMutate()`.
+
+When used with a backing store that does not support pipelining, the mutators are executed normally (against the store at call-time), therefore this method may be used with any backing store regardless of its pipelining capability or lack thereof.
+
+Building a large pipeline may cause significant runtime memory pressure and as such has the potential to cause out-of-memory conditions. Consumers are advised to create reasonably-sized pipelines, though the author does not (yet) provide guidance as to what qualifies "reasonably-sized".
+
+The accessor methods of `SparseBitmap` - `get()` and `inBounds()` - **cannot be called within a pipelined context!** Doing so is a programming error and will result in an exception being thrown.
 
 ## Contributing
 

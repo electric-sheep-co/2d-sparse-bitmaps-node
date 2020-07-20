@@ -3,7 +3,7 @@
 const os = require('os');
 const fs = require('fs').promises;
 const { argv } = require('yargs');
-const TwoD = require('2d-sparse-bitmaps');
+const TwoD = require('../');
 const Redis = require('ioredis');
 
 function hostinfo() {
@@ -39,9 +39,9 @@ const T = {
   }
 };
 
-async function mainSequence(redisConn) {
+async function mainSequence(redisConn, multiplier = 1) {
   const bitmap = new TwoD.SparseBitmap({ [TwoD.BackingStoreKey]: redisConn });
-  const lim = bitmap[TwoD.ChunkWidthKey];
+  const lim = bitmap[TwoD.ChunkWidthKey] * multiplier;
   const key = `benchmark:${Date.now()}`;
   const results = [];
 
@@ -58,8 +58,8 @@ async function mainSequence(redisConn) {
     return inBounds.length;
   };
 
-  const setAll = async (k) => {
-    results.push((await T.run(`set all ${lim}x${lim}`, async () => {
+  const setAll = async (k, m) => {
+    results.push((await T.run(`set all ${lim}x${lim}${(m ? ` (${m})` : '')}`, async () => {
       for (let x = 0; x < lim; x++) {
         for (let y = 0; y < lim; y++) {
           await bitmap.set(k, x, y);
@@ -68,8 +68,8 @@ async function mainSequence(redisConn) {
     })));
   };
 
-  const unsetAll = async (k) => {
-    results.push((await T.run(`unset all ${lim}x${lim}`, async () => {
+  const unsetAll = async (k, m) => {
+    results.push((await T.run(`unset all ${lim}x${lim}${(m ? ` (${m})` : '')}`, async () => {
       for (let x = 0; x < lim; x++) {
         for (let y = 0; y < lim; y++) {
           await bitmap.unset(k, x, y);
@@ -78,16 +78,20 @@ async function mainSequence(redisConn) {
     })));
   };
 
-  await setAll(key);
+  await bitmap.pipelinedMutate(async () => setAll(key, 'pipelined'));
   results.push((await T.run(`find all in ${lim}x${lim}`, findAllClosure.bind(null, key))));
-  await unsetAll(key);
 
   const npKey = `${key}:np`;
-  await setAll(npKey);
+  await setAll(npKey, 'no-pipeline');
   bitmap.isPipelineCapable = false;
   results.push((await T.run(`find all in ${lim}x${lim}, sans pipeline`, findAllClosure.bind(null, npKey))));
   bitmap.isPipelineCapable = true;
-  await unsetAll(npKey);
+
+  await unsetAll(npKey, 'normal');
+
+  await bitmap.pipelinedMutate(async () => {
+    await unsetAll(key, 'pipelined'); // 'key' all stil set from above
+  });
 
   results.push((await T.run(`delete all '*${key}*'`, async () => {
     const keys = await redisConn.keys(`*${key}*`);
@@ -98,6 +102,7 @@ async function mainSequence(redisConn) {
 }
 
 async function main() {
+  const mult = argv.m || argv.mult || 1;
   const host = argv.h || argv.host || 'localhost';
   const port = argv.p || argv.port || 6379;
   const auth = argv.a || argv.auth;
@@ -127,14 +132,14 @@ async function main() {
 
     console.log(`Benchmark starting with ${report.host.os.name}-${report.host.arch} ${report.host.os.release}; ` +
       `redis ${report.redis.info.redis_version} (${report.redis.host}); node ${report.node.node}\n`);
-    report.results = await mainSequence(redisConn);
+    report.results = await mainSequence(redisConn, mult);
     
     report.run = {
       timeSec: Number(process.hrtime.bigint() - overallStart) / 1e9
     };
 
     redisConn.disconnect();
-    const reportPath = `report.${(new Date().toISOString()).replace(/[\-:\.]/g, '')}.json`;
+    const reportPath = `report.${(new Date().toISOString()).replace(/[-:.]/g, '')}.json`;
     await fs.writeFile(reportPath, JSON.stringify(report, null, 2));
 
     console.log(`\nDone in ${report.run.timeSec.toFixed(2)}s, report written to: ${reportPath}`);

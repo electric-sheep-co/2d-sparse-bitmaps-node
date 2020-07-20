@@ -1,10 +1,10 @@
 {
   "name": "2d-sparse-bitmaps-benchmark",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "Benchmarking for 2d-sparse-bitmaps",
   "main": "benchmark",
   "scripts": {
-    "lint": "eslint .",
+    "lint": "eslint benchmark",
     "start": "node benchmark"
   },
   "author": "Ryan Joseph <ryan@electricsheep.co>",
