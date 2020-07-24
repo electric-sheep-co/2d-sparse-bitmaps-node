@@ -53,7 +53,7 @@ module.exports = class {
 
   _unmarshalFrom(file) {
     try { this.store = JSON.parse(fs.readFileSync(file)) }
-    catch {}
+    catch {} // eslint-disable-line no-empty
   }
 
   _marshalTo(file) {

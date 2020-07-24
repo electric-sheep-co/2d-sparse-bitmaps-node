@@ -1,6 +1,6 @@
 {
   "name": "2d-sparse-bitmaps",
-  "version": "0.0.2",
+  "version": "0.1.0",
   "description": "Two-dimensional sparse bitmaps",
   "homepage": "https://github.com/electric-sheep-co/2d-sparse-bitmaps-node",
   "repository": {
