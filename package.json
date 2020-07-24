@@ -19,7 +19,8 @@
     "eslint": "^7.4.0",
     "ioredis": "^4.17.3",
     "tape": "^5.0.1",
-    "tape-promise": "^4.0.0"
+    "tape-promise": "^4.0.0",
+    "yargs": "^15.4.1"
   },
   "keywords": [
     "sparse-bitmap",

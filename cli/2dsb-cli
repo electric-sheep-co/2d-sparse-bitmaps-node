@@ -1,0 +1,120 @@
+#!/usr/bin/env node
+
+const TwoD = require('../')
+const argv = require('yargs').help(false).argv
+const Redis = require('ioredis')
+
+const commands = {
+  get: "x y",
+  set: "x y",
+  unset: "x y",
+  inBounds: "fromX fromY toX toY",
+  // *replaces* the above properties with their counterpart bitmap methods
+  bind: (bitmap, key) => {
+    const boundBitmap = bitmap.boundToKey(key)
+    const origInBounds = boundBitmap.inBounds
+    boundBitmap.inBounds = (fx, fy, tx, ty) => origInBounds(TwoD.Util.Bounds.fromArray([[fx, fy], [tx, ty]]))
+    Object.keys(boundBitmap).forEach(x => { commands[x] = boundBitmap[x] })
+    delete commands.bind
+  }
+}
+
+const help = () => {
+  console.log(`Usage: ${argv.$0} [options] key command ...\n`)
+  console.log(`Options:`)
+  console.log(`\t-h, --host\t\tredis host (default: 'localhost')`)
+  console.log(`\t-p, --port\t\tredis port (default: 6379)`)
+  console.log(`\t-a, --auth\t\tredis password`)
+  console.log(`\t-d, --db\t\tredis db (default: 0)`)
+  console.log(`\t-s, --store\t\tInMemoryStore persistence file; superceeds redis when used`)
+  console.log(`\t-c, --chunkWidth\tchunk width (default: ${TwoD.Defaults[TwoD.ChunkWidthKey]})`)
+  console.log(`\t-g, --grid\t\tdisplay output in a grid (applicable only to 'inBounds')`)
+  console.log(`\t--help\t\t\tthis help text`)
+  console.log(`\nCommands:`)
+  console.log(Object.entries(commands).filter(x => x[0] !== 'bind').map(x => `\t${x[0]} ${x[1]}`).join('\n'))
+  process.exit(0)
+}
+
+const main = async () => {
+  const host = argv.h || argv.host || 'localhost'
+  const port = argv.p || argv.port || 6379
+  const auth = argv.a || argv.auth
+  const db   = argv.n || argv.db || 0
+  const wdth = argv.c || argv.chunkWidth || TwoD.Defaults[TwoD.ChunkWidthKey]
+  const inbg = argv.g || argv.grid
+  const stre = argv.s || argv.store
+
+  if (inbg) {
+    argv._.unshift(inbg)
+  }
+
+  const key = argv._.shift()
+  const cmd = argv._.shift()
+
+  if (argv.help || Object.keys(commands).indexOf(cmd) === -1) {
+    help()
+  }
+
+  let backingStore
+
+  if (stre) {
+    backingStore = new TwoD.InMemoryStore()
+    backingStore._unmarshalFrom(stre)
+  } else {
+    const redisOpts = {}
+
+    if (auth) {
+      redisOpts.password = auth
+    }
+
+    if (db) {
+      redisOpts.db = db
+    }
+
+    backingStore = new Redis(host, port, redisOpts)
+  }
+
+  const bitmap = new TwoD.SparseBitmap({
+    [TwoD.BackingStoreKey]: backingStore,
+    [TwoD.ChunkWidthKey]: wdth
+  })
+
+  const opts = argv._.map(x => Number.parseInt(x))
+
+  if (opts.some(x => x < 0)) {
+    throw new Error('negative coordinates not supported')
+  }
+
+  commands.bind(bitmap, key)
+  const cmdOut = await commands[cmd](...opts)
+
+  if (inbg && cmd === 'inBounds') {
+    const cMap = cmdOut.reduce((a, x) => ({[`${x[0]},${x[1]}`]: true, ...a}), {})
+
+    const from = [opts[0], opts[1]]
+    const to = [opts[2], opts[3]]
+
+    console.log('(' + from + ')')
+    for (let y = from[1]; y <= to[1]; y++) {
+      let row = '  '
+
+      for (let x = from[0]; x <= to[0]; x++) {
+        row += `${x},${y}` in cMap ? '|' : '.'
+      }
+
+      console.log(row)
+    }
+    
+    console.log(' '.repeat(to[0] - from[0]) + '(' + to + ')')
+  } else {
+    console.log(cmdOut)
+  }
+
+  if (stre) {
+    backingStore._marshalTo(stre)
+  } else {
+    backingStore.disconnect()
+  }
+}
+
+main()

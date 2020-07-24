@@ -26,7 +26,15 @@ Additionally, the sparse nature of the data structure allows for performant quer
 $ npm install 2d-sparse-bitmaps
 ```
 
-## Instantiation
+## Examples
+
+The included [tests](./test), [benchmarking tool](./tools/benchmark) & [cli](./cli) hopefully provide ample usage examples, and in the case of the [cli](./cli) an easily-accessibly interactive means of working with the library.
+
+## Usage
+
+All coordinates must be _unsigned_, a limitation that may be removed in future releases.
+
+### Instantiation
 
 With the default in-memory store:
 
@@ -45,7 +53,17 @@ const rConn = new Redis();
 const bitmap = new TwoD.SparseBitmap({ [TwoD.BackingStoreKey]: rConn });
 ```
 
-### Backing store interface
+#### Full options
+
+| Constant Name | Description | Default | Restrictions |
+| --- | --- | --- | --- |
+| `ChunkWidthKey` | The width in bits of each chunk in the sparse bitmap | 128 | >= 8, must be a multiple of 8 |
+| `KeyPrefixKey` | The string preprended to each `key` before being passed onto the backing store. | `sparse-bitmap` | none |
+| `BackingStoreKey` | The backing store instance to be used.  | [`InMemoryStore`](stores/in-memory.js) | Must conform to the [aforementioned interface][7]. |
+
+Each chunk requires up to `(X / 8) * X` bytes of storage, where `X` is the chosen chunk width. Accordingly, the default chunk width of 128 requires 2048 bytes per chunk.
+
+#### Backing store interface
 
 Any backing store must implement this interface:
 
@@ -58,20 +76,6 @@ getBuffer(key);
 It may optionally implement `pipeline()`, which must return an instance implementing the aforementioned interface *plus* `exec()` for pipeline execution; additionally, the backing store interface methods of this instance must accept an additional callback argument of type `function (err, result)`.
 
 The default [`InMemoryStore`](stores/in-memory.js) provides an example implementation sans `pipeline()` et. al.
-
-### Full options
-
-| Constant Name | Description | Default | Restrictions |
-| --- | --- | --- | --- |
-| `ChunkWidthKey` | The width in bits of each chunk in the sparse bitmap | 128 | >= 8, must be a multiple of 8 |
-| `KeyPrefixKey` | The string preprended to each `key` before being passed onto the backing store. | `sparse-bitmap` | none |
-| `BackingStoreKey` | The backing store instance to be used.  | [`InMemoryStore`](stores/in-memory.js) | Must conform to the [aforementioned interface][7]. |
-
-Each chunk requires up to `(X / 8) * X` bytes of storage, where `X` is the chosen chunk width. Accordingly, the default chunk width of 128 requires 2048 bytes per chunk.
-
-## Usage
-
-All coordinates must be _unsigned_, a limitation that may be removed in future releases.
 
 ### Get:
 
@@ -189,27 +193,26 @@ $ node test/default-store.js
 
 ## Benchmarks
 
-The following rudimentary benchmarks were performed on an AWS EC2 type *m5a.large* (4 vCPUs, 16GB RAM) running the Ubuntu 20LTS AMI (ID `ami-03ceeb0f46ee38ce7`). Both the backing store redis instance and [`benchmark`](./benchmark/benchmark) script were run on this VM. All redis [snapshotting](https://redis.io/topics/persistence#snapshotting)) was disabled. The EC2 instance was created specifically for this use and had other workloads during the benchmarking process.
+The following rudimentary benchmarks were performed on an AWS EC2 type *m5a.large* (4 vCPUs, 16GB RAM) running the Ubuntu 20LTS AMI (ID `ami-03ceeb0f46ee38ce7`). Both the backing store redis instance and [`benchmark`](./tools/benchmark) script were run on this VM. All redis [snapshotting](https://redis.io/topics/persistence#snapshotting) was disabled. The EC2 instance was created specifically for this use and had no other workloads during the benchmarking process.
 
 Version particulars:
-* Linux kernel `X`
-* Node `X` (v8 `X`)
-* Redis `X` (standalone)
+* Linux kernel `5.4.0-1020-aws`
+* Node `14.6.0` (v8 `8.4.371.19-node.12`)
+* Redis `5.0.7 (636cde3b5c7a3923)` (standalone)
+
+The benchmark run consisted three runs of differing multipliers (1, 3 & 5), each 101 iterations of the full sequence defined in [`benchmark::T.seq.main()`](./tools/benchmark#L54).
 
 The primary takeaway is the significant increase in performance afforded by pipelined operations.
 
-Each data point here is synthesized from 101 iteraions of the full sequence defined in [`benchmark::T.seq.main()`](./benchmark/benchmark#L54).
+According to this limited dataset, the mean search rate is **~1.2 Gbit/s** (~150 MB/s), though it does depend on how sparsely-populated the search area is (with rates from ~493 Mbit/s - ~2 Gbit/s observed). Without pipelining enabled, this rate drops *drastically* to ~183 Mbit/s (a *6.5x* drop).
 
-According to this limited dataset, the mean search rate for varying overall fill rates is as follows:
-* 1% fill: X megabits/sec
-* xxx
+The full data set is linked below, and the Google Sheet used to post-process and analyze the data is [available here][10].
 
 ### Raw data
 
-* report for `benchmark -i 101 -w 127`
-* report for `benchmark -i 101 -w 127 -m 3`
-* report for `benchmark -i 101 -w 127 -m 5`
-* analysis spreadsheet
+* [full JSON report][11] & [processed CSV][12] for `benchmark -i 101 -w 127`
+* [full JSON report][13] & [processed CSV][14] for `benchmark -i 101 -w 127 -m 3`
+* [full JSON report][15] & [processed CSV][16] for `benchmark -i 101 -w 127 -m 5`
 
 ## License
 
@@ -224,3 +227,10 @@ According to this limited dataset, the mean search rate for varying overall fill
 [7]: https://github.com/electric-sheep-co/2d-sparse-bitmaps-node/#backing-store-interface
 [8]: https://electricsheep.co
 [9]: https://www.npmjs.com/package/tape
+[10]: https://docs.google.com/spreadsheets/d/1rFrTLa0Msnghn_Xy5vqghVWRXzJywtWvZrgdLZG-fvM/edit?usp=sharing
+[11]: https://static.2dsb.electricsheep.co/report.20200722T110119219Z.json
+[12]: https://static.2dsb.electricsheep.co/report.20200722T110119219Z.csv
+[13]: https://static.2dsb.electricsheep.co/report.20200722T184653181Z.json
+[14]: https://static.2dsb.electricsheep.co/report.20200722T184653181Z.csv
+[15]: https://static.2dsb.electricsheep.co/report.20200723T102057790Z.json
+[16]: https://static.2dsb.electricsheep.co/report.20200723T102057790Z.csv

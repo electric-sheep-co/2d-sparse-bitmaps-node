@@ -1,3 +1,5 @@
+const fs = require('fs')
+
 // a very simple, unoptimized store provided as an example implementation & last-chance default
 module.exports = class {
   constructor() {
@@ -47,5 +49,14 @@ module.exports = class {
     }
     
     return Buffer.from(this.store[key]);
+  }
+
+  _unmarshalFrom(file) {
+    try { this.store = JSON.parse(fs.readFileSync(file)) }
+    catch {}
+  }
+
+  _marshalTo(file) {
+    fs.writeFileSync(file, JSON.stringify(this.store))
   }
 }
